@@ -1,0 +1,12 @@
+reset
+set size 1,1
+set multiplot
+# first
+set size 1,0.5
+set origin 0,0.5
+plot 'm11.txt' lw 3 lc rgb 'red'
+#second
+set size 1,0.5
+set origin 0,0
+plot 'm12.txt' lw 5 lc rgb 'blue'
+unset multiplot
