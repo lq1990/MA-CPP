@@ -2,9 +2,19 @@
 #include <mat.h>
 #include <string>
 #include <armadillo>
+#include <vector>
+#include <map>
 
 using namespace arma;
 using namespace std;
+
+typedef struct MyStruct
+{
+	double id;
+	double score;
+	arma::mat matData;
+};
+
 
 double mat_read(string path, string name, mxArray *&Array1, mxArray *&Array2)
 {
@@ -146,11 +156,139 @@ void read_write02()
 	return;
 }
 
+void read_write03()
+{
+	// 从matlab中读取 mat文件，转成map格式，包含matrix，id，score，details
+	// 从txt文件中读取 场景id名称，signal名称
+
+	const char* path = "C:\\Program Files\\MATLAB\\MATLAB Production Server\\R2015a\\MA_Matlab\\Arteon\\start_loadSync\\DataFinalSave\\dataSScaling.mat";
+	MATFile* file = matOpen(path, "r");
+	mxArray* dataSScaling = matGetVariable(file, "dataSScaling");
+
+	int numOfF = mxGetNumberOfFields(dataSScaling);
+	cout << "num of fields: " << numOfF << endl;
+	const char* fieldname0 = mxGetFieldNameByNumber(dataSScaling, 0);
+	const char* fieldname1 = mxGetFieldNameByNumber(dataSScaling, 1);
+	const char* fieldname2 = mxGetFieldNameByNumber(dataSScaling, 2);
+	cout << "fieldname0: " << fieldname0 << endl;
+	cout << "fieldname1: " << fieldname1 << endl;
+	cout << "fieldname2: " << fieldname2 << endl;
+
+	//mxArray* id = mxGetField(dataSScaling, 0, fieldname0);
+	cout << "mxGetFieldByNumber" << endl;
+	mxArray* id = mxGetFieldByNumber(dataSScaling, 0, 5);
+
+	const char* field = "details";
+	mxArray* id_field= mxGetField(id, 0, field);
+	const char* id_field_data = (const char*)mxGetData(id_field);
+	int rows = mxGetM(id_field);
+	int cols = mxGetN(id_field);
+	cout << "rows: " << rows << endl;
+	cout << "cols: " << cols << endl;
+
+	cout << field << " id_field_data: " <<endl;
+	for (int i = 0; i < cols*2; i++) {
+		printf("%c",id_field_data[i]);
+	}
+
+
+
+	matClose(file);
+	return;
+}
+
+map<const char*, MyStruct> read_write04()
+{
+	map<const char*, MyStruct> myMap;
+
+	const char* path = "C:\\Program Files\\MATLAB\\MATLAB Production Server\\R2015a\\MA_Matlab\\Arteon\\start_loadSync\\DataFinalSave\\dataSScaling.mat";
+	MATFile* file = matOpen(path, "r");
+	mxArray* dataSScaling = matGetVariable(file, "dataSScaling");
+
+	int numFdataS = mxGetNumberOfFields(dataSScaling);
+
+	// 遍历 dataSScaling 中每一个场景id
+	for (int i = 0; i < numFdataS; i++) {
+		const char* scenarioName = mxGetFieldNameByNumber(dataSScaling, i);
+		//cout<< "scenarioName: " << scenarioName << endl;
+		mxArray* scenario = mxGetFieldByNumber(dataSScaling, 0, i);
+		int numFScenario = mxGetNumberOfFields(scenario);
+		//cout << "numFScenario: " << numFScenario <<endl;
+
+		// 获取某一个场景id中的 field
+		mxArray* id = mxGetField(scenario, 0, "id");
+		mxArray* score = mxGetField(scenario, 0, "score");
+		mxArray* EngineSpeed = mxGetField(scenario, 0, "EngineSpeed");
+		int rows_es = mxGetM(EngineSpeed);
+		int colss_es = mxGetN(EngineSpeed);
+
+		// 所有signal放到一个 matrix中, matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
+		arma::mat matData(rows_es, numFScenario-4);
+		for (int j = 4; j < numFScenario; j++) {
+			const char* fieldName = mxGetFieldNameByNumber(scenario, j);
+			//cout << "fieldName: " << fieldName << endl;
+
+			mxArray* signal = mxGetFieldByNumber(scenario, 0, j);
+			int rows = mxGetM(signal);
+			int cols = mxGetN(signal);
+			double* data = (double*)mxGetData(signal);
+			//cout << fieldName << " data: " << data[0] << endl;
+
+			// 将data保存到matData
+			for (int m = 0; m < rows; m++) {
+				matData(m, j-4) = data[m];
+			}
+		}
+
+		//matData.print("matData");
+
+		MyStruct mystruct;
+		double* idData = (double*)mxGetData(id);
+		double* scoreData = (double*)mxGetData(score);
+
+		mystruct.id = idData[0];
+		mystruct.score = scoreData[0];
+		mystruct.matData = matData;
+
+		// 把所有场景id中各种数据存到map
+		myMap[scenarioName] = mystruct;
+	}
+
+	return myMap;
+}
 
 int main()
 {
-	read_write02();
+	clock_t t_begin, t_end;
+	t_begin = clock();
 
+	// ------------------------------------------------------------------
+	// ------------------------ main code -------------------------------
+
+	map<const char*, MyStruct> myMap = read_write04(); // 使用map，故内部成员乱序排列
+	map<const char*, MyStruct>::iterator it;
+
+	// 用迭代器 遍历map。有map的特性，每次for循环遍历的顺序都不同。好处：在训练model时，不用人为 shuffle数据了。
+	for (it = myMap.begin(); it!=myMap.end(); it++) {
+		const char* scenario = it->first;
+		MyStruct mys = it->second;
+		
+		cout << "scenario: " << scenario << endl;
+		cout << "id: " << mys.id << endl;
+		cout << "score: " << mys.score << endl;
+		// matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
+		mat Data = mys.matData;
+		cout << "matData: \n" << Data << endl;
+
+		cout << "=======================" << endl;
+	}
+	
+	// -----------------------------------------------------------------
+	// -----------------------------------------------------------------
+
+	t_end = clock();
+	cout << "\n---------------------\ntime needed: " 
+		<< (double)(t_end - t_begin) / CLOCKS_PER_SEC << "s" << endl;
 
 	system("pause");
 	return 0;
