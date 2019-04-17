@@ -21,9 +21,39 @@
     <ClCompile Include="RNN.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="SGD.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Adagrad.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Rmsprop.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Adadelta.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RNN.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AOptimizer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SGD.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Adagrad.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Rmsprop.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Adadelta.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

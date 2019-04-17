@@ -1,4 +1,8 @@
 ﻿#pragma once
+#ifndef   MY_H_RNN       //如果没有定义这个宏  
+#define   MY_H_RNN       //定义这个宏  
+
+#include "MyLib.h"
 #include <armadillo>
 #include <string>
 #include <map>
@@ -41,9 +45,14 @@ public:
 
 	mat score2onehot(double score);
 
-	void train(map<const char*, MyStruct> allScenarios);
+	void train(map<const char*, MyStruct> myMap);
 
 	map<string, arma::mat> getParams();
+
+	/*
+		将 params save到本地
+	*/
+	void saveParams();
 
 private:
 	int n_features;
@@ -63,5 +72,7 @@ private:
 	mat bh;
 	mat by;
 	vector<double> lossVec; // 记录loss
+	vector<double> loss_mean_each_epoch;
 };
 
+#endif 
