@@ -5,17 +5,17 @@
 RNN::RNN()
 {
 	this->alpha = 0.01;
-	this->totalSteps = 501;
+	this->total_steps = 501;
 	this->n_features = 17;
 	this->n_hidden = 100;
-	this->n_output_classes = 30;  // 回归转为分类，默认输出类别数目
-	this->score_max = 9.0;
-	this->score_min = 6.1;
+	this->n_output_classes = 5;  // 回归转为分类，默认输出类别数目
+	this->score_max = 8.9;
+	this->score_min = 6.0;
 	/*
 	cout << "Without setting parameters in constructor by yourself," << 
 		"the default parameters:" <<
 		"\nlearning rate:	" << this->alpha  <<
-		"\ntotalSteps:	"<< this->totalSteps << 
+		"\ntotal_steps:	"<< this->total_steps << 
 		"\nn_features:	"<< this->n_features << 
 		"\nn_hidden:	"<< this->n_hidden << 
 		"\nn_output_classes:	"<< this->n_output_classes <<
@@ -31,15 +31,14 @@ RNN::~RNN()
 {
 }
 
-RNN::RNN(int n_features, int n_hidden, int n_output_classes, 
-	double alpha, int totalSteps,
+RNN::RNN(int n_hidden, int n_output_classes, 
+	double alpha, int total_steps,
 	double score_max, double score_min)
 {
-	this->n_features = n_features;
 	this->n_hidden = n_hidden;
 	this->n_output_classes = n_output_classes;
 	this->alpha = alpha;
-	this->totalSteps = totalSteps;
+	this->total_steps = total_steps;
 	this->score_max = score_max;
 	this->score_min = score_min;
 }
@@ -53,10 +52,6 @@ void RNN::initParams()
 	this->by = arma::zeros(this->n_output_classes, 1);
 }
 
-/*
-	train params of rnn-model.
-	myMap: 存储所有场景score和matData的map。
-*/
 void RNN::train(map<const char*, MyStruct> myMap)
 {
 	map<const char*, MyStruct>::iterator it;
@@ -74,9 +69,9 @@ void RNN::train(map<const char*, MyStruct> myMap)
 	vector<double> loss_mean_each_epoch; // 只记录每个epoch中 loss mean
 	/*
 		外层循环: 遍历所有场景为一个 epoch。
-		totalSteps: 是 epoch 数量
+		total_steps: 是 epoch 数量
 	*/
-	for (int i = 0; i < this->totalSteps; i++)
+	for (int i = 0; i < this->total_steps; i++)
 	{
 		/* 
 			内层循环，
@@ -90,7 +85,8 @@ void RNN::train(map<const char*, MyStruct> myMap)
 			MyStruct sec = ascenario->second;
 			arma::mat matData = sec.matData;
 			double score = sec.score;
-			hprev = arma::zeros<mat>(this->n_hidden, 1); 
+			hprev = arma::zeros<mat>(this->n_hidden, 1);
+
 			// init hprev，使用每一个场景训练模型时，hprev 都是0，即hs[-1]=0
 			map<string, mat> mp = lossFun(matData, score, hprev);
 
@@ -101,8 +97,16 @@ void RNN::train(map<const char*, MyStruct> myMap)
 			arma::mat dbh = mp["dbh"];
 			arma::mat dby = mp["dby"];
 			//hprev = mp["last_hs"];
+
+			// update params。把每个场景看做一个样本的话，则是sgd。======= 此处考虑用 多线程并行计算dWi，求dWi和用来更新参数，这样 it +=2 或更多
+			// 使用 高级优化算法
+			this->Wxh -= this->alpha * dWxh;
+			this->Whh -= this->alpha * dWhh;
+			this->Why -= this->alpha * dWhy;
+			this->bh -= this->alpha * dbh;
+			this->by -= this->alpha * dby;
 			
-			lossVec.push_back(loss(0,0));
+			lossVec.push_back(loss(0, 0));
 			// print loss
 			if (i % 50 == 0)
 			{
@@ -110,12 +114,6 @@ void RNN::train(map<const char*, MyStruct> myMap)
 				cout << "				loss: " << loss(0,0) << endl;
 			}
 
-			// update params
-			this->Wxh -= this->alpha * dWxh;
-			this->Whh -= this->alpha * dWhh;
-			this->Why -= this->alpha * dWhy;
-			this->bh -= this->alpha * dbh;
-			this->by -= this->alpha * dby;
 		}
 
 		//lossVec mean
@@ -134,6 +132,11 @@ void RNN::train(map<const char*, MyStruct> myMap)
 	this->loss_mean_each_epoch = loss_mean_each_epoch;
 }
 
+void RNN::trainMultiThread(map<const char*, MyStruct> myMap)
+{
+}
+
+
 void RNN::saveParams()
 {
 	this->Wxh.save("Wxh.txt", file_type::raw_ascii);
@@ -149,10 +152,7 @@ void RNN::saveParams()
 	loss_mean_each_epoch.save("loss_mean_each_epoch.txt", file_type::raw_ascii);
 }
 
-/*
-	inputs: 某一个场景的matData
-	score: 某一个场景的score，即label
-*/
+
 map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev)
 {
 	// 注：参数要在这个函数体外部提前初始化。
@@ -161,7 +161,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev)
 	mat targets = this->score2onehot(score);
 
 	//
-	map<int, mat> xs, hs, ys, ps;
+	map<int, mat> xs, hs, ys, ps; // 使用map的原因：前传中计算的值会被保存，在BPTT中可使用。
 	hs[-1] = hprev; // 默认是 深拷贝
 	mat loss = arma::zeros<mat>(1, 1);
 
@@ -238,7 +238,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev)
 	mymap["dWhy"] = dWhy;
 	mymap["dbh"] = dbh;
 	mymap["dby"] = dby;
-	mymap["last_hs"] = hs[inputs.n_rows-1];
+	//mymap["last_hs"] = hs[inputs.n_rows-1];
 
 	return mymap;
 }
@@ -267,9 +267,11 @@ mat RNN::score2onehot(double score)
 	double part = 1.0 / this->n_output_classes;
 
 	double pos = (score - this->score_min) 
-					/ (this->score_max - this->score_min + pow(10, -8)); // 分母加上 1e-8, 避免score是 max时的index越界
+					/ (this->score_max - this->score_min +pow(10, -8)); // 分母加上 1e-8, 避免score是 max时的index越界
 
+	//cout << "pos/part: " << pos / part << endl;
 	double pos_idx = std::floor(pos / part);
+	//cout << "pos_idx: " << pos_idx << endl;
 
 	mat zs = arma::zeros<mat>(this->n_output_classes, 1);
 	zs(pos_idx, 0) = 1;
@@ -289,3 +291,14 @@ map<string, arma::mat> RNN::getParams()
 
 	return mymap;
 }
+
+void RNN::setParams(mat Wxh, mat Whh, mat Why, mat bh, mat by)
+{
+	this->Wxh = Wxh;
+	this->Whh = Whh;
+	this->Why = Why;
+	this->bh = bh;
+	this->by = by;
+}
+
+

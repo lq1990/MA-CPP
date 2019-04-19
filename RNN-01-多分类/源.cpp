@@ -9,13 +9,6 @@
 using namespace arma;
 using namespace std;
 
-//typedef struct MyStruct
-//{
-//	double id;
-//	double score;
-//	arma::mat matData;
-//};
-
 map<const char*, MyStruct> read_write()
 {
 	map<const char*, MyStruct> myMap;
@@ -121,6 +114,11 @@ void train_rnn()
 	rnn.train(myMap);
 
 	rnn.saveParams();
+}
+
+void train_rnn_multi_thread()
+{
+
 }
 
 void test_rnn()
@@ -229,24 +227,24 @@ int main()
 	// ------------------------ main code -------------------------------
 	//show_myMap();
 	
-	//train_rnn();
+	train_rnn();
 
 	//test_rnn();  // 使用训练好的参数，对现有场景测试，
 
 
-
 	// 测试 score2onehot，对
-	
 	/*RNN rnn = RNN();
-	mat scoreMat(30,30);
-	double score = 6.1;
-	for (double i = 0; i < 30; i += 1)
+	mat scoreMat(10, 30);
+
+	double score = 6.0;
+	for (double i = 0; i <= 29; i += 1)
 	{
 		cout << "score: " << score + i/10 << endl;
-		mat onehot = rnn.score2onehot(score+i/10);
+		mat onehot = rnn.score2onehot(score+i/10 );
 		scoreMat.col(i) = onehot;
+		cout << "----------" << endl;
 	}
-	scoreMat.cols(19, 29).print();*/
+	scoreMat.print();*/
 	
 
 	// 使用 MyLib

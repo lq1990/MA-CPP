@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef   MY_H_RNN       //如果没有定义这个宏  
-#define   MY_H_RNN       //定义这个宏  
+#ifndef   RNN_H       //如果没有定义这个宏  
+#define   RNN_H       //定义这个宏  
 
 #include "MyLib.h"
 #include <armadillo>
@@ -27,7 +27,7 @@ public:
 	/*
 		n_out_classes: 将回归问题转化为分类问题，类别数目可先设置少些，再慢慢增加。可更好理解特征与参数关系。
 	*/
-	RNN(int n_features, int n_hidden, int n_output_classes, 
+	RNN(int n_hidden, int n_output_classes, 
 		double alpha, int totalSteps, 
 		double score_max, double score_min);
 	
@@ -37,7 +37,11 @@ public:
 	void initParams();
 
 	/* 
+		核心：前传、反传。
 		这是针对一个场景的数据（一个matData加一个score）
+		此函数：一个场景计算一次 dW, db。类似sgd，但把一个场景当成一个样本。
+		inputs: 某一个场景的matData
+		score: 某一个场景的score，即label。
 	*/
 	map<string, mat> lossFun(mat inputs, double score, mat hprev);
 
@@ -45,9 +49,32 @@ public:
 
 	mat score2onehot(double score);
 
-	void train(map<const char*, MyStruct> myMap);
+	/*
+		train params of rnn-model.
+		myMap: 存储所有场景score和matData的map。
+	*/
+	void train(map<const char*, MyStruct> myMap); // myMap: scenarios: id, score, matData
+
+	/*
+		若在 train中，实验单线程进行for循环 it+=2，一次计算两个场景，求和dW再update参数。若可行，则可用多线程了。
+	*/
+	void trainMultiThread(map<const char*, MyStruct> myMap);
+
+	void test();
+
+	/*
+		封装前传，可供train test使用，提高代码复用。
+	*/
+	void forwardProp();
 
 	map<string, arma::mat> getParams();
+
+	/*
+		设置模型参数。
+		目的：模型训练后，W b存储以txt格式到本地。在test中，读取txt拿到W b，用其设置RNN参数。
+		保存参数到本地，到使用时即test时，读取本地文件，可避免再训练模型耗时。
+	*/
+	void setParams(mat Wxh, mat Whh, mat Why, mat bh, mat by);
 
 	/*
 		将 params save到本地
@@ -59,7 +86,7 @@ private:
 	int n_hidden;
 	int n_output_classes;
 	double alpha; // learning_rate
-	int totalSteps;
+	int total_steps;
 	double score_max; 
 	double score_min;
 	// score_max, score_min 作用：
