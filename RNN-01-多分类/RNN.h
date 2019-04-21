@@ -7,6 +7,8 @@
 #include <string>
 #include <map>
 #include <vector>
+#include "AOptimizer.h"
+
 
 using namespace arma;
 using namespace std;
@@ -28,13 +30,13 @@ public:
 		n_out_classes: 将回归问题转化为分类问题，类别数目可先设置少些，再慢慢增加。可更好理解特征与参数关系。
 	*/
 	RNN(int n_hidden, int n_output_classes, 
-		double alpha, int totalSteps, 
+		double alpha, int total_steps, 
 		double score_max, double score_min);
 	
 	/* 
 		初始化模型参数
 	*/
-	void initParams();
+	void initParams(map<const char*, MyStruct> myMap);
 
 	/* 
 		核心：前传、反传。
@@ -43,7 +45,7 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
-	map<string, mat> lossFun(mat inputs, double score, mat hprev);
+	map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false);
 
 	mat clip(mat matrix, double maxVal, double minVal);
 
@@ -53,7 +55,7 @@ public:
 		train params of rnn-model.
 		myMap: 存储所有场景score和matData的map。
 	*/
-	void train(map<const char*, MyStruct> myMap); // myMap: scenarios: id, score, matData
+	void train(map<const char*, MyStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
 
 	/*
 		若在 train中，实验单线程进行for循环 it+=2，一次计算两个场景，求和dW再update参数。若可行，则可用多线程了。
@@ -86,7 +88,7 @@ private:
 	int n_hidden;
 	int n_output_classes;
 	double alpha; // learning_rate
-	int total_steps;
+	int total_epoches;
 	double score_max; 
 	double score_min;
 	// score_max, score_min 作用：
@@ -98,8 +100,9 @@ private:
 	mat Why;
 	mat bh;
 	mat by;
-	vector<double> lossVec; // 记录loss
+	vector<double> lossAllVec; // 记录loss
 	vector<double> loss_mean_each_epoch;
+	vector<double> accuracy_each_epoch;
 };
 
 #endif 

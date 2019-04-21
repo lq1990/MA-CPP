@@ -5,6 +5,9 @@
 #include <vector>
 #include <unordered_map>
 #include "RNN.h"
+#include "AOptimizer.h"
+#include "SGD.h"
+#include "Adagrad.h"
 
 using namespace arma;
 using namespace std;
@@ -31,8 +34,8 @@ map<const char*, MyStruct> read_write()
 		mxArray* id = mxGetField(scenario, 0, "id");
 		mxArray* score = mxGetField(scenario, 0, "score");
 		mxArray* EngineSpeed = mxGetField(scenario, 0, "EngineSpeed");
-		int rows_es = mxGetM(EngineSpeed);
-		int colss_es = mxGetN(EngineSpeed);
+		int rows_es = (int)mxGetM(EngineSpeed);
+		int colss_es = (int)mxGetN(EngineSpeed);
 
 		// 所有signal放到一个 matrix中, matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
 		arma::mat matData(rows_es, numFScenario-4);
@@ -41,8 +44,8 @@ map<const char*, MyStruct> read_write()
 			//cout << "fieldName: " << fieldName << endl;
 
 			mxArray* signal = mxGetFieldByNumber(scenario, 0, j);
-			int rows = mxGetM(signal);
-			int cols = mxGetN(signal);
+			int rows = (int)mxGetM(signal);
+			int cols = (int)mxGetN(signal);
 			double* data = (double*)mxGetData(signal);
 			//cout << fieldName << " data: " << data[0] << endl;
 
@@ -108,12 +111,23 @@ void show_myMap()
 
 void train_rnn()
 {
-	auto myMap = read_write();
+	auto myMap = read_write(); // get myMap: score & matData
 
-	RNN rnn = RNN();
-	rnn.train(myMap);
+	AOptimizer* opt = NULL; // optimizer
+	//opt = new SGD();
+	opt = new Adagrad();
+	
+	RNN rnn = RNN(50, 5, 0.1, 501, 8.9, 6.0); 
+	rnn.train(myMap, opt); // train RNN
+	// n_h 100, 5, 0.01, epoches 501,	SGD:	 dura 66s, loss 
+	// n_h 100, 5, 0.01, epoches 501,	Adagrad: dura 94s, loss 
+	// n_h 50, 5, 0.01,	epoches 501,	Adagrad: dura 50s, loss , accu 0.9
+	// n_h 50, 5, 0.1, epoches 501,		Adagrad: dura 48.6, loss 0.01, accu 1
+	// n_h 50, 5, 0.01, epoches 501,	SGD:	 dura 40, loss 0.045, accu 1
+	
+	rnn.saveParams(); // save params in txt
 
-	rnn.saveParams();
+	delete opt;
 }
 
 void train_rnn_multi_thread()
@@ -177,8 +191,8 @@ void test_rnn()
 					loss += -log(ps[t](fuvec(0)));
 
 					// 从ps这个 softmax 中找到模型算出的
-					uvec idx_max_predict = index_max(ps[t], 0);
-					uvec idx_max_target = index_max(targets, 0);
+					uvec idx_max_predict = arma::index_max(ps[t], 0);
+					uvec idx_max_target = arma::index_max(targets, 0);
 					if (idx_max_predict(0) == idx_max_target(0))
 					{
 						true_false_vec.push_back(1);
@@ -231,6 +245,46 @@ int main()
 
 	//test_rnn();  // 使用训练好的参数，对现有场景测试，
 
+
+	// ----------------- 测试代码 ---------------------
+	/*mat m1 = randu(3, 4);
+	m1.print("m1");
+	mat m2 = randu(3, 4);
+	m2.print("m2");
+
+	mat res = m1 / m2;
+	res.print("m1/m2");*/
+	
+	/*
+	mat m0 = arma::randu(3, 4);
+	m0.print("m0");
+	mat m1 = arma::randu(3, 4);
+	m1.print("m1");
+	mat m2 = arma::randu(3, 4);
+	m2.print("m2");
+
+	// 平方，求和，开根
+	mat m_2_sum = m0 % m0 + m1 % m1 + m2 % m2;
+	mat m_2_sum_sqrt = arma::sqrt(m_2_sum);
+
+	m_2_sum_sqrt.print("norm ");
+	*/
+	// norm
+	/*mat m1 = randu<mat>(3, 4);
+	m1.print("m1");
+	double m1norm = arma::norm(m1, 2);
+	cout << "m1 norm: " << m1norm << endl; // 最终是一个数
+	
+	vec v1 = randu<vec>(5);
+	v1.print("v1");
+	double n1 = arma::norm(v1);
+	cout << "n1 norm: " << n1 << endl;
+
+	vec v12 = v1 % v1;
+	double v12_sum = arma::sum(v12);
+	double v12_sum_sqrt = std::sqrt(v12_sum);
+	cout << "my n1 norm: " << v12_sum_sqrt << endl;
+	*/
 
 	// 测试 score2onehot，对
 	/*RNN rnn = RNN();

@@ -64,6 +64,26 @@ public:
 		double mean_vec = sum / vec.size();
 		return mean_vec;
 	}
+
+	/*
+		对dPVec中存储的所有mat，进行elementwise 的平方、求和、sqrt。
+		L2范式。
+	*/
+	static mat norm_elementwise(vector<arma::mat> dPVec)
+	{
+		mat mat2_sum = 0;
+		for (int i = 0; i < dPVec.size(); i++)
+		{
+			mat amat = dPVec[i];
+			mat amat2 = amat % amat; // square
+
+			mat2_sum += amat2; // sum
+		}
+
+		mat mat2_sum_sqrt = arma::sqrt(mat2_sum);
+
+		return mat2_sum_sqrt;
+	}
 };
 
 

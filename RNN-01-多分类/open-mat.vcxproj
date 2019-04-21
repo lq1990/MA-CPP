@@ -123,19 +123,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Adadelta.cpp" />
     <ClCompile Include="Adagrad.cpp" />
-    <ClCompile Include="Rmsprop.cpp" />
     <ClCompile Include="RNN.cpp" />
     <ClCompile Include="SGD.cpp" />
     <ClCompile Include="源.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Adadelta.h" />
     <ClInclude Include="Adagrad.h" />
     <ClInclude Include="AOptimizer.h" />
     <ClInclude Include="MyLib.h" />
-    <ClInclude Include="Rmsprop.h" />
     <ClInclude Include="RNN.h" />
     <ClInclude Include="SGD.h" />
   </ItemGroup>
