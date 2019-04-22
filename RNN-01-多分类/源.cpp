@@ -102,8 +102,8 @@ void show_myMap()
 		std::cout << "score: " << mys.score << endl;
 		// matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
 		mat Data = mys.matData;
-		//std::cout << "matData: \n" << Data << endl;
-		std::cout << "		matData.n_rows: " << Data.n_rows << endl;
+		std::cout << "matData: \n" << Data << endl;
+		//std::cout << "		matData.n_rows: " << Data.n_rows << endl;
 	}
 	
 
@@ -151,15 +151,16 @@ void test_rnn()
 
 	// 在测试中，截取训练数据中一段，来测试得分. 
 	// t_begin 应按照场景t长处的比例设置。
-	int totalPercent_clip_front = 95;
+	int totalPercent_clip_front = 50;
 	mat test_percent_log(totalPercent_clip_front, 3);
 	for (int percent = 0; percent < totalPercent_clip_front; percent++)
 	{
-		cout << "percent: " << percent << endl;
+		std::cout << "percent: " << percent << endl;
 		//int t_begin = 20;
 		mat loss = arma::zeros<mat>(1, 1);
 		map<int, mat> xs, hs, ys, ps;
-		RNN rnn = RNN();
+		RNN rnn = RNN(50, 5, 0.1, 501, 8.9, 6.0);
+
 		// 遍历每个场景
 		vector<int> true_false_vec; // 记录所有场景中，模型预测对错
 		for (it = myMap.begin(); it != myMap.end(); it++)
@@ -176,13 +177,15 @@ void test_rnn()
 			cout << "score_target:\n" << targets << endl;*/
 
 			int t_begin = round(percent / 100.0 * matData.n_rows);
-			hs[t_begin-1] = arma::zeros<mat>(100, 1);
+			hs[t_begin-1] = arma::zeros<mat>(Whh.n_rows, 1);
+
+			int to_rows = (int)(matData.n_rows / 10*9);
 			// 遍历 一个场景的matData的每一行
-			for (int t = t_begin; t < matData.n_rows; t++)
+			for (int t = t_begin; t < to_rows; t++)
 			{
 				xs[t] = matData.row(t).t();
 				hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
-				if (t == matData.n_rows - 1)
+				if (t == to_rows - 1)
 				{
 					ys[t] = Why * hs[t] + by;
 					mat sum_exp = arma::sum(arma::exp(ys[t]), 0);
@@ -241,9 +244,10 @@ int main()
 	// ------------------------ main code -------------------------------
 	//show_myMap();
 	
-	train_rnn();
+	//train_rnn();
 
-	//test_rnn();  // 使用训练好的参数，对现有场景测试，
+	test_rnn();  
+	// 使用训练好的参数，对现有场景测试，left_clip 增加到10%, right_clip 一半
 
 
 	// ----------------- 测试代码 ---------------------

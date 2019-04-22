@@ -1,0 +1,5 @@
+plot 	'test_percent_log_left50_right5.txt' using 1:3 w l title 'accu right to 5/10' lc rgb 'yellow' lw 2
+replot 	'test_percent_log_left50_right6.txt' using 1:3 w l title 'accu right to 6/10' lc rgb 'green' lw 4
+replot 	'test_percent_log_left50_right8.txt' using 1:3 w l title 'accu right to 8/10' lc rgb 'blue' lw 6
+replot 	'test_percent_log_left50_right9.txt' using 1:3 w l title 'accu right to 9/10' lc rgb 'red' lw 8
+replot 	'test_percent_log_left50_right10.txt' using 1:3 w l title 'accu right to 10/10' lc rgb 'black' lw 10
