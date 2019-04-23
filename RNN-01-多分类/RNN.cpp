@@ -252,7 +252,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 		}
 	}
 
-	// clip 梯度
+	// clip 梯度。此处可以用 引用，优化速度 ==============================
 	dWxh = this->clip(dWxh, 5.0, -5.0);
 	dWhh = this->clip(dWhh, 5.0, -5.0);
 	dWhy = this->clip(dWhy, 5.0, -5.0);
@@ -273,6 +273,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 
 mat RNN::clip(mat matrix, double maxVal, double minVal)
 {
+	// transform 遍历每一个元素
 	matrix.transform([maxVal, minVal](double val) {
 		if (val >= maxVal)
 		{

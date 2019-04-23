@@ -1,9 +1,13 @@
 ﻿#include <iostream>
-#include <mat.h>
+#include <thread>
+#include <future>
+#include <mutex>
 #include <string>
-#include <armadillo>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <mat.h>
+#include <armadillo>
 #include "RNN.h"
 #include "AOptimizer.h"
 #include "SGD.h"
@@ -11,6 +15,8 @@
 
 using namespace arma;
 using namespace std;
+
+std::mutex mtx;
 
 map<const char*, MyStruct> read_write()
 {
@@ -41,7 +47,7 @@ map<const char*, MyStruct> read_write()
 		arma::mat matData(rows_es, numFScenario-4);
 		for (int j = 4; j < numFScenario; j++) {
 			const char* fieldName = mxGetFieldNameByNumber(scenario, j);
-			//cout << "fieldName: " << fieldName << endl;
+			//cout << "signal fieldName: " << fieldName << endl;
 
 			mxArray* signal = mxGetFieldByNumber(scenario, 0, j);
 			int rows = (int)mxGetM(signal);
@@ -54,7 +60,7 @@ map<const char*, MyStruct> read_write()
 				matData(m, j-4) = data[m];
 			}
 		}
-
+		//cout << endl;
 		//matData.print("matData");
 
 		MyStruct mystruct;
@@ -102,10 +108,9 @@ void show_myMap()
 		std::cout << "score: " << mys.score << endl;
 		// matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
 		mat Data = mys.matData;
-		std::cout << "matData: \n" << Data << endl;
+		//std::cout << "matData: \n" << Data << endl;
 		//std::cout << "		matData.n_rows: " << Data.n_rows << endl;
 	}
-	
 
 }
 
@@ -130,9 +135,108 @@ void train_rnn()
 	delete opt;
 }
 
-void train_rnn_multi_thread()
+void getSum(double left, double right, double& res)
 {
+	// 使用临时变量，而非用直接res+=i。因为 res为引用，引用再取值的速度，不如设定局部变量栈操作。
+	double tmp_sum = 0; 
 
+	for (double i = left; i < right; i++)
+	{
+		tmp_sum += i;
+	}
+	res = tmp_sum;
+}
+
+double getSum2(double left, double right)
+{
+	double tmp = 0;
+	for (double i = left; i < right; i++)
+	{
+		tmp += i;
+	}
+
+	return tmp;
+}
+
+void demo_multi_thread()
+{
+	double max_num = pow(10, 9);
+	clock_t t_begin, t_end;
+
+	// 普通一个线程
+	/*t_begin = clock();
+	double sum_one_thread = 0;
+	getSum(0, max_num, std::ref(sum_one_thread));
+	cout << "sum_one_thread: " << sum_one_thread << endl;
+	t_end = clock();
+	cout << "time needed: " << (double)(t_end - t_begin) / CLOCKS_PER_SEC << endl;*/
+
+	// 多线程
+	int max_n_threads = 10;
+	mat dura_log_multi_thread = mat(max_n_threads, 3); // arma::mat 存储 n_threads 和 时间
+	
+	for (int t = 1; t <= max_n_threads; t++)
+	{
+		int n_threads = t;
+		t_begin = clock();
+		vector<future<double>> vec_future;
+		vec_future.reserve(n_threads); // vector预留空间
+		for (int i = 0; i < n_threads; i++)
+		{
+			vec_future.push_back(async(getSum2, i == 0 ? 0 : 
+				max_num/n_threads*i
+				, max_num / n_threads * (i + 1)));
+		}
+	
+		double sum_multi_thread = 0;
+		for (int i = 0; i < n_threads; i++)
+		{
+			sum_multi_thread += vec_future[i].get(); // get 有阻塞
+		}
+		//cout << "sum_multi_thread: " << sum_multi_thread << endl;
+		t_end = clock();
+		double dura = (double)(t_end - t_begin) / CLOCKS_PER_SEC;
+		//cout << "time needed: " << dura << endl;
+
+		dura_log_multi_thread(t-1, 0) = t;
+		dura_log_multi_thread(t-1, 1) = dura;
+		dura_log_multi_thread(t - 1, 2) = sum_multi_thread;
+
+	}
+
+	
+
+	dura_log_multi_thread.print("n_thread, dura");
+	dura_log_multi_thread.save("dura_log.txt", raw_ascii);
+
+
+}
+
+void mySum(int& n)
+{
+	mtx.lock(); // lock放到 for外面，会快很多。比lock放到for内部快。
+	for (int i = 0; i < 100000; i++)
+	{
+		n++;
+	}
+	mtx.unlock();
+}
+
+void demo_multi_thread_mutex()
+{
+	vector<thread> vec;
+	int s = 0;
+	for (int i = 0; i < 4; i++)
+	{
+		//vec.push_back(thread(mySum, std::ref(s))); 
+		vec.emplace_back(mySum, std::ref(s));
+		// emplace_back 和push_back 相比较，好处：省去主动调用thread()
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		vec[i].join();
+	}
+	cout << s << endl;
 }
 
 void test_rnn()
@@ -242,12 +346,16 @@ int main()
 	t_begin = clock();
 
 	// ------------------------ main code -------------------------------
+	//read_write();
+
 	//show_myMap();
 	
 	//train_rnn();
 
-	test_rnn();  
+	demo_multi_thread_mutex();
+
 	// 使用训练好的参数，对现有场景测试，left_clip 增加到10%, right_clip 一半
+	//test_rnn();  
 
 
 	// ----------------- 测试代码 ---------------------
