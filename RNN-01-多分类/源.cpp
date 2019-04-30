@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <iterator>
 #include <thread>
 #include <future>
 #include <mutex>
@@ -12,26 +13,28 @@
 #include "AOptimizer.h"
 #include "SGD.h"
 #include "Adagrad.h"
+#include "DemoMultiThread.h"
 
 using namespace arma;
 using namespace std;
 
-std::mutex mtx;
 
-map<const char*, MyStruct> read_write()
+map<string, MyStruct> read_write()
 {
-	map<const char*, MyStruct> myMap;
+	map<string, MyStruct> myMap;
 
 	const char* path = "C:\\Program Files\\MATLAB\\MATLAB Production Server\\R2015a\\MA_Matlab\\Arteon\\start_loadSync\\DataFinalSave\\dataSScaling.mat";
 	MATFile* file = matOpen(path, "r");
 	mxArray* dataSScaling = matGetVariable(file, "dataSScaling");
 
 	int numFdataS = mxGetNumberOfFields(dataSScaling);
-
+	
 	// 遍历 dataSScaling 中每一个场景id
 	for (int i = 0; i < numFdataS; i++) {
-		const char* scenarioName = mxGetFieldNameByNumber(dataSScaling, i);
-		//cout<< "scenarioName: " << scenarioName << endl;
+		const char* scenarioName_char = mxGetFieldNameByNumber(dataSScaling, i);
+		string scenarioName = scenarioName_char;
+		//cout<< "scenarioName:" << scenarioName << "." << endl;
+
 		mxArray* scenario = mxGetFieldByNumber(dataSScaling, 0, i);
 		int numFScenario = mxGetNumberOfFields(scenario);
 		//cout << "numFScenario: " << numFScenario <<endl;
@@ -75,6 +78,10 @@ map<const char*, MyStruct> read_write()
 		myMap[scenarioName] = mystruct;
 	}
 
+	// 去除 id122_start
+	string id122 = "id122_start";
+	cout << "erase: " << myMap.erase(id122) << ", if return 1, erase id122 successfully" << endl;
+
 	return myMap;
 }
 
@@ -84,9 +91,10 @@ map<const char*, MyStruct> read_write()
 */
 void show_myMap()
 {
-	map<const char*, MyStruct> myMap = read_write();
+	map<string, MyStruct> myMap = read_write();
+
 	// 使用map，故内部成员乱序排列
-	map<const char*, MyStruct>::iterator it;
+	map<string, MyStruct>::iterator it;
 
 	// begin()
 	/*it = myMap.begin();
@@ -100,6 +108,25 @@ void show_myMap()
 	std::cout << "matData: \n" << matData << endl;*/
 
 	// 遍历myMap中所有元素
+	int count;
+	for(it = myMap.begin(), count = 0; it != myMap.end(); it++, count++)
+	{
+			string scenario = it->first;
+			MyStruct mys = it->second;
+			std::cout << "scenario1: " << scenario << ", ";
+			std::cout << "score1: " << mys.score << endl;
+
+			/*
+			auto next_scenario = std::next(it)->first;
+			MyStruct next_mys = std::next(it)->second;
+			std::cout << "scenario2: " << next_scenario << ", ";
+			std::cout << "score2: " << next_mys.score << endl;
+			*/
+
+		cout << "		==> count: " << count << endl;
+	}
+
+	/*
 	for (it = myMap.begin(); it!=myMap.end(); it++) {
 		const char* scenario = it->first;
 		MyStruct mys = it->second;
@@ -110,20 +137,23 @@ void show_myMap()
 		mat Data = mys.matData;
 		//std::cout << "matData: \n" << Data << endl;
 		//std::cout << "		matData.n_rows: " << Data.n_rows << endl;
-	}
+	}*/
+
 
 }
 
 void train_rnn()
 {
-	auto myMap = read_write(); // get myMap: score & matData
+	map<string, MyStruct> myMap = read_write(); // get myMap: score & matData
 
 	AOptimizer* opt = NULL; // optimizer
 	//opt = new SGD();
 	opt = new Adagrad();
 	
-	RNN rnn = RNN(50, 5, 0.1, 501, 8.9, 6.0); 
-	rnn.train(myMap, opt); // train RNN
+	RNN rnn = RNN(); 
+	rnn.trainMultiThread(myMap, opt, 8);
+	// rnn.train(myMap, opt); // train RNN
+
 	// n_h 100, 5, 0.01, epoches 501,	SGD:	 dura 66s, loss 
 	// n_h 100, 5, 0.01, epoches 501,	Adagrad: dura 94s, loss 
 	// n_h 50, 5, 0.01,	epoches 501,	Adagrad: dura 50s, loss , accu 0.9
@@ -133,110 +163,6 @@ void train_rnn()
 	rnn.saveParams(); // save params in txt
 
 	delete opt;
-}
-
-void getSum(double left, double right, double& res)
-{
-	// 使用临时变量，而非用直接res+=i。因为 res为引用，引用再取值的速度，不如设定局部变量栈操作。
-	double tmp_sum = 0; 
-
-	for (double i = left; i < right; i++)
-	{
-		tmp_sum += i;
-	}
-	res = tmp_sum;
-}
-
-double getSum2(double left, double right)
-{
-	double tmp = 0;
-	for (double i = left; i < right; i++)
-	{
-		tmp += i;
-	}
-
-	return tmp;
-}
-
-void demo_multi_thread()
-{
-	double max_num = pow(10, 9);
-	clock_t t_begin, t_end;
-
-	// 普通一个线程
-	/*t_begin = clock();
-	double sum_one_thread = 0;
-	getSum(0, max_num, std::ref(sum_one_thread));
-	cout << "sum_one_thread: " << sum_one_thread << endl;
-	t_end = clock();
-	cout << "time needed: " << (double)(t_end - t_begin) / CLOCKS_PER_SEC << endl;*/
-
-	// 多线程
-	int max_n_threads = 10;
-	mat dura_log_multi_thread = mat(max_n_threads, 3); // arma::mat 存储 n_threads 和 时间
-	
-	for (int t = 1; t <= max_n_threads; t++)
-	{
-		int n_threads = t;
-		t_begin = clock();
-		vector<future<double>> vec_future;
-		vec_future.reserve(n_threads); // vector预留空间
-		for (int i = 0; i < n_threads; i++)
-		{
-			vec_future.push_back(async(getSum2, i == 0 ? 0 : 
-				max_num/n_threads*i
-				, max_num / n_threads * (i + 1)));
-		}
-	
-		double sum_multi_thread = 0;
-		for (int i = 0; i < n_threads; i++)
-		{
-			sum_multi_thread += vec_future[i].get(); // get 有阻塞
-		}
-		//cout << "sum_multi_thread: " << sum_multi_thread << endl;
-		t_end = clock();
-		double dura = (double)(t_end - t_begin) / CLOCKS_PER_SEC;
-		//cout << "time needed: " << dura << endl;
-
-		dura_log_multi_thread(t-1, 0) = t;
-		dura_log_multi_thread(t-1, 1) = dura;
-		dura_log_multi_thread(t - 1, 2) = sum_multi_thread;
-
-	}
-
-	
-
-	dura_log_multi_thread.print("n_thread, dura");
-	dura_log_multi_thread.save("dura_log.txt", raw_ascii);
-
-
-}
-
-void mySum(int& n)
-{
-	mtx.lock(); // lock放到 for外面，会快很多。比lock放到for内部快。
-	for (int i = 0; i < 100000; i++)
-	{
-		n++;
-	}
-	mtx.unlock();
-}
-
-void demo_multi_thread_mutex()
-{
-	vector<thread> vec;
-	int s = 0;
-	for (int i = 0; i < 4; i++)
-	{
-		//vec.push_back(thread(mySum, std::ref(s))); 
-		vec.emplace_back(mySum, std::ref(s));
-		// emplace_back 和push_back 相比较，好处：省去主动调用thread()
-	}
-	for (int i = 0; i < 4; i++)
-	{
-		vec[i].join();
-	}
-	cout << s << endl;
 }
 
 void test_rnn()
@@ -250,8 +176,8 @@ void test_rnn()
 	by.load("by.txt", raw_ascii);
 
 	// forward 得到由模型算出的每个场景的score
-	map<const char*, MyStruct> myMap = read_write();
-	map<const char*, MyStruct>::iterator it;
+	map<string, MyStruct> myMap = read_write();
+	map<string, MyStruct>::iterator it;
 
 	// 在测试中，截取训练数据中一段，来测试得分. 
 	// t_begin 应按照场景t长处的比例设置。
@@ -269,7 +195,7 @@ void test_rnn()
 		vector<int> true_false_vec; // 记录所有场景中，模型预测对错
 		for (it = myMap.begin(); it != myMap.end(); it++)
 		{
-			const char* scenario = it->first;
+			auto scenario = it->first;
 			MyStruct sec = it->second;
 			double score_target = sec.score;
 			mat matData = sec.matData;
@@ -350,15 +276,52 @@ int main()
 
 	//show_myMap();
 	
-	//train_rnn();
+	train_rnn(); 
+	// 单线程 55s，双线程49s, 四线程37s, 
+	// 四线程（async）17.6s, 六线程16s，八线程14s，十线程14.2s
+	// 注意：电源高性能模式。
 
-	demo_multi_thread_mutex();
 
 	// 使用训练好的参数，对现有场景测试，left_clip 增加到10%, right_clip 一半
 	//test_rnn();  
 
+	//DemoMultiThread::demo_multi_thread();
+
 
 	// ----------------- 测试代码 ---------------------
+
+	// 测试 iterator 的 end。end没有具体数值，只是一个标志位，代表结束。
+	/*
+	map<string, MyStruct> mp = read_write();
+	map<string, MyStruct>::iterator it;
+	it = mp.begin();
+	cout << it->first << ", " << it->second.score << endl;
+	it = mp.end();
+	cout << it->first << ", " << it->second.score << endl; // error
+	*/
+
+	// 测试 iterator next
+	/*
+	unordered_map<string, int> mp;
+	mp["zbc"] = 123;
+	mp["def"] = 946;
+	mp["hjk"] = 6748;
+	unordered_map<string, int>::iterator it;
+	it = mp.begin();
+	while (it != mp.end())
+	{
+		cout << it->first << " : " << it->second << endl;
+		it = std::next(it);
+	}*/
+
+	// test clip
+	/*arma::mat m1(4, 3, fill::randu);
+	m1.print("m1");
+	RNN rnn = RNN();
+	rnn.clip(m1, 0.8, 0.2);
+	m1.print("m1 after");
+	*/
+
 	/*mat m1 = randu(3, 4);
 	m1.print("m1");
 	mat m2 = randu(3, 4);

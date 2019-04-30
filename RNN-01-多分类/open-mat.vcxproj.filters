@@ -27,6 +27,9 @@
     <ClCompile Include="Adagrad.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DemoMultiThread.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RNN.h">
@@ -42,6 +45,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Adagrad.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DemoMultiThread.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

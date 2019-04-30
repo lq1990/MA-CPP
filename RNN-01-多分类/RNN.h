@@ -3,6 +3,10 @@
 #define   RNN_H       //定义这个宏  
 
 #include "MyLib.h"
+#include <iterator>
+#include <thread>
+#include <mutex>
+#include <future>
 #include <armadillo>
 #include <string>
 #include <map>
@@ -10,8 +14,8 @@
 #include "AOptimizer.h"
 
 
-using namespace arma;
 using namespace std;
+using namespace arma;
 
 typedef struct MyStruct
 {
@@ -36,7 +40,7 @@ public:
 	/* 
 		初始化模型参数
 	*/
-	void initParams(map<const char*, MyStruct> myMap);
+	void initParams(map<string, MyStruct> myMap);
 
 	/* 
 		核心：前传、反传。
@@ -45,22 +49,28 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
+
+	static void clip(mat& matrix, double maxVal, double minVal);
+
+	static mat score2onehot(double score);
+
 	map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false);
 
-	mat clip(mat matrix, double maxVal, double minVal);
-
-	mat score2onehot(double score);
+	/*
+		静态方法。供给多线程train
+	*/
+	static map<string, mat> lossFunMultiThread(mat inputs, double score, mat hprev, vector<double>& true_false);
 
 	/*
 		train params of rnn-model.
 		myMap: 存储所有场景score和matData的map。
 	*/
-	void train(map<const char*, MyStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
+	void train(map<string, MyStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
 
 	/*
 		若在 train中，实验单线程进行for循环 it+=2，一次计算两个场景，求和dW再update参数。若可行，则可用多线程了。
 	*/
-	void trainMultiThread(map<const char*, MyStruct> myMap);
+	void trainMultiThread(map<string, MyStruct> myMap, AOptimizer* opt, int n_threads);
 
 	void test();
 
@@ -84,25 +94,30 @@ public:
 	void saveParams();
 
 private:
-	int n_features;
-	int n_hidden;
-	int n_output_classes;
+	/*
+		有多个 static属性，因为当使用多线程并行计算时，用到lossFunMultiThread是static方法，此方法用到的属性必须是静态。
+		静态方法不能访问动态属性。
+	*/
+	static int n_features;
+	static int n_hidden;
+	static int n_output_classes;
 	double alpha; // learning_rate
 	int total_epoches;
-	double score_max; 
-	double score_min;
+	static double score_max; 
+	static double score_min;
 	// score_max, score_min 作用：
 	// 结合n_output_classes ，将具体的一个场景的score转换为 onehot
 	// eg. max: 9.0, min:6.1, 分3份，
 	// 则 6.1-7.0: [1,0,0]; 7.1-8.0: [0,1,0]; 8.1-9.0: [0,0,1]; 
-	mat Wxh;
-	mat Whh;
-	mat Why;
-	mat bh;
-	mat by;
+	static mat Wxh;
+	static mat Whh;
+	static mat Why;
+	static mat bh;
+	static mat by;
 	vector<double> lossAllVec; // 记录loss
 	vector<double> loss_mean_each_epoch;
 	vector<double> accuracy_each_epoch;
+	static std::mutex mtx;
 };
 
 #endif 

@@ -124,6 +124,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Adagrad.cpp" />
+    <ClCompile Include="DemoMultiThread.cpp" />
     <ClCompile Include="RNN.cpp" />
     <ClCompile Include="SGD.cpp" />
     <ClCompile Include="源.cpp" />
@@ -131,6 +132,7 @@
   <ItemGroup>
     <ClInclude Include="Adagrad.h" />
     <ClInclude Include="AOptimizer.h" />
+    <ClInclude Include="DemoMultiThread.h" />
     <ClInclude Include="MyLib.h" />
     <ClInclude Include="RNN.h" />
     <ClInclude Include="SGD.h" />

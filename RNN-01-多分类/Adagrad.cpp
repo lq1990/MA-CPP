@@ -21,9 +21,11 @@ void Adagrad::optimize(arma::mat & P, double alpha, arma::mat dP, mat& mdP, int 
 	// update Param
 	P -= alpha * dP / arma::sqrt(mdP + pow(10, -8));
 
-	if (i % 249 == 0)
+
+	// show learning_rate
+	/*if (i % 249 == 0)
 	{
 		mat m_mean = arma::mean(arma::sqrt(mdP + pow(10, -8)));
 		cout << "---- learning_rate roughly: " << alpha / m_mean(0, 0) << endl;
-	}
+	}*/
 }
