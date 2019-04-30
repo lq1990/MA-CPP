@@ -1,28 +1,30 @@
 ﻿#include "RNN.h"
 
 /*
-	静态属性的初始化如下。之后可用 Constant类来保存，以便全局使用和修改=======================
+	静态属性的初始化如下。之后可用 MyParams类来保存，以便全局使用和修改=======================
 */
 std::mutex RNN::mtx;
-double RNN::score_max = 8.9;
-double RNN::score_min = 6.0;
-int RNN::n_features = 17;
-int RNN::n_hidden = 50;
-int RNN::n_output_classes = 5;
-mat RNN::Wxh = arma::randn(n_hidden, n_features) * 0.01;
-mat RNN::Whh = arma::randn(n_hidden, n_hidden) * 0.01;
-mat RNN::Why = arma::randn(n_output_classes, n_hidden) * 0.01;
-mat RNN::bh = arma::zeros(n_hidden, 1);
-mat RNN::by = arma::zeros(n_output_classes, 1);
+double RNN::score_max = MyParams::score_max;
+double RNN::score_min = MyParams::score_min;
+int RNN::n_features = MyParams::n_features;
+int RNN::n_hidden = MyParams::n_hidden;
+int RNN::n_output_classes = MyParams::n_output_classes;
+mat RNN::Wxh = MyParams::Wxh;
+mat RNN::Whh = MyParams::Whh;
+mat RNN::Why = MyParams::Why;
+mat RNN::bh = MyParams::bh;
+mat RNN::by = MyParams::by;
+
 
 RNN::RNN()
 {
-	this->alpha = 0.1;
-	this->total_epoches = 501;
-	this->n_hidden = 50;
-	this->n_output_classes = 5;  // 回归转为分类，默认输出类别数目
-	this->score_max = 8.9;
-	this->score_min = 6.0;
+	this->alpha = MyParams::alpha;
+	this->total_epoches = MyParams::total_epoches;
+	this->n_hidden = MyParams::n_hidden;
+	this->n_output_classes = MyParams::n_output_classes;  // 回归转为分类，默认输出类别数目
+	this->score_max = MyParams::score_max;
+	this->score_min = MyParams::score_min;
+
 	/*
 	cout << "Without setting parameters in constructor by yourself," << 
 		"the default parameters:" <<
@@ -43,6 +45,7 @@ RNN::~RNN()
 {
 }
 
+/*
 RNN::RNN(int n_hidden, int n_output_classes = 3, 
 	double alpha = 0.01, int total_epoches = 501,
 	double score_max = 8.9, double score_min = 6.0)
@@ -53,7 +56,7 @@ RNN::RNN(int n_hidden, int n_output_classes = 3,
 	this->total_epoches = total_epoches;
 	this->score_max = score_max;
 	this->score_min = score_min;
-}
+}*/
 
 void RNN::initParams(map<string, MyStruct> myMap)
 {
@@ -181,7 +184,6 @@ void RNN::trainMultiThread(map<string, MyStruct> myMap, AOptimizer* opt, int n_t
 	vector<double> accuracy_each_epoch;
 	
 	vector<future<map<string, mat>>> vec_future; // 存储多线程的vector
-	mat hprev;
 	mat dWxhSum, dWhhSum, dWhySum, dbhSum, dbySum, loss;
 
 	/*
@@ -615,6 +617,7 @@ void RNN::clip(mat& matrix, double maxVal, double minVal)
 		}
 	});
 }
+
 
 mat RNN::score2onehot(double score)
 {

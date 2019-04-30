@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 #include "AOptimizer.h"
+#include "MyParams.h"
 
 
 using namespace std;
@@ -32,15 +33,24 @@ public:
 
 	/*
 		n_out_classes: 将回归问题转化为分类问题，类别数目可先设置少些，再慢慢增加。可更好理解特征与参数关系。
-	*/
+	
 	RNN(int n_hidden, int n_output_classes, 
 		double alpha, int total_steps, 
 		double score_max, double score_min);
-	
+	*/
+
 	/* 
 		初始化模型参数
 	*/
 	void initParams(map<string, MyStruct> myMap);
+
+
+	static void clip(mat& matrix, double maxVal, double minVal);
+
+	/*
+		按照 n_output_classes 将score生成 一定长度的 onehot vector
+	*/
+	static mat score2onehot(double score);
 
 	/* 
 		核心：前传、反传。
@@ -49,11 +59,6 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
-
-	static void clip(mat& matrix, double maxVal, double minVal);
-
-	static mat score2onehot(double score);
-
 	map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false);
 
 	/*

@@ -19,6 +19,26 @@ using namespace arma;
 using namespace std;
 
 
+class TestClass
+{
+public:
+	TestClass();
+	~TestClass();
+	static int val;
+private:
+
+};
+
+int TestClass::val = 0;
+
+TestClass::TestClass()
+{
+}
+
+TestClass::~TestClass()
+{
+}
+
 map<string, MyStruct> read_write()
 {
 	map<string, MyStruct> myMap;
@@ -80,6 +100,7 @@ map<string, MyStruct> read_write()
 
 	// 去除 id122_start
 	string id122 = "id122_start";
+	cout << "id122, count: " << myMap.count(id122) << endl;
 	cout << "erase: " << myMap.erase(id122) << ", if return 1, erase id122 successfully" << endl;
 
 	return myMap;
@@ -150,7 +171,8 @@ void train_rnn()
 	//opt = new SGD();
 	opt = new Adagrad();
 	
-	RNN rnn = RNN(); 
+	// 注：若设置参数，必须通过修改MyParams类中静态属性
+	RNN rnn = RNN();
 	rnn.trainMultiThread(myMap, opt, 8);
 	// rnn.train(myMap, opt); // train RNN
 
@@ -189,7 +211,7 @@ void test_rnn()
 		//int t_begin = 20;
 		mat loss = arma::zeros<mat>(1, 1);
 		map<int, mat> xs, hs, ys, ps;
-		RNN rnn = RNN(50, 5, 0.1, 501, 8.9, 6.0);
+		RNN rnn = RNN();
 
 		// 遍历每个场景
 		vector<int> true_false_vec; // 记录所有场景中，模型预测对错
@@ -276,7 +298,7 @@ int main()
 
 	//show_myMap();
 	
-	train_rnn(); 
+	//train_rnn(); 
 	// 单线程 55s，双线程49s, 四线程37s, 
 	// 四线程（async）17.6s, 六线程16s，八线程14s，十线程14.2s
 	// 注意：电源高性能模式。
@@ -289,6 +311,17 @@ int main()
 
 
 	// ----------------- 测试代码 ---------------------
+
+	// 测试 类的静态属性，
+	/*
+	TestClass* tc1 = new TestClass();
+	cout << "tc1 val: " << tc1->val << endl;
+
+	TestClass* tc2 = new TestClass();
+	tc2->val = 10;
+	cout << "tc1 val: " << tc1->val << endl; // 10 // 当tc2修改 static属性 val后，tc1的val也受影响。static属性和方法是 放在堆中的方法区中
+	cout << "tc2 val: " << tc2->val << endl; // 10
+	*/
 
 	// 测试 iterator 的 end。end没有具体数值，只是一个标志位，代表结束。
 	/*
@@ -475,3 +508,4 @@ int main()
 	system("pause");
 	return 0;
 }
+
