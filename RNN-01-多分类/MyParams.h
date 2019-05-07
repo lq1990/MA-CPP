@@ -10,7 +10,7 @@ class MyParams
 public:
 	MyParams();
 	~MyParams();
-	static const double alpha;
+	static double alpha;
 	static int total_epoches;
 	static double score_max;
 	static double score_min;

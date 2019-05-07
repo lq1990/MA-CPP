@@ -18,27 +18,10 @@
 using namespace arma;
 using namespace std;
 
-
-class TestClass
-{
-public:
-	TestClass();
-	~TestClass();
-	static int val;
-private:
-
-};
-
-int TestClass::val = 0;
-
-TestClass::TestClass()
-{
-}
-
-TestClass::~TestClass()
-{
-}
-
+/*
+	vector<MyStruct> 代替 map
+	使用vector好处：方便 打乱顺序、截取data为 train/test
+*/
 map<string, MyStruct> read_write()
 {
 	map<string, MyStruct> myMap;
@@ -68,7 +51,7 @@ map<string, MyStruct> read_write()
 
 		// 所有signal放到一个 matrix中, matrix每一行是 signal随着时间变的值，matrix列是 signals (features)
 		arma::mat matData(rows_es, numFScenario-4);
-		for (int j = 4; j < numFScenario; j++) {
+		for (int j = 4; j < numFScenario; j++) { // 从第4列开始是signal
 			const char* fieldName = mxGetFieldNameByNumber(scenario, j);
 			//cout << "signal fieldName: " << fieldName << endl;
 
@@ -99,13 +82,14 @@ map<string, MyStruct> read_write()
 	}
 
 	// 去除 id122_start
+	/*
 	string id122 = "id122_start";
 	cout << "id122, count: " << myMap.count(id122) << endl;
 	cout << "erase: " << myMap.erase(id122) << ", if return 1, erase id122 successfully" << endl;
+	*/
 
 	return myMap;
 }
-
 
 /*
 	myMap 中存储所有场景的数据: score，matData
@@ -136,6 +120,7 @@ void show_myMap()
 			MyStruct mys = it->second;
 			std::cout << "scenario1: " << scenario << ", ";
 			std::cout << "score1: " << mys.score << endl;
+			std::cout << "matData:\n" << mys.matData << endl;
 
 			/*
 			auto next_scenario = std::next(it)->first;
@@ -144,7 +129,7 @@ void show_myMap()
 			std::cout << "score2: " << next_mys.score << endl;
 			*/
 
-		cout << "		==> count: " << count << endl;
+		std::cout << "		==> count: " << count << endl;
 	}
 
 	/*
@@ -168,25 +153,44 @@ void train_rnn()
 	map<string, MyStruct> myMap = read_write(); // get myMap: score & matData
 
 	AOptimizer* opt = NULL; // optimizer
-	//opt = new SGD();
-	opt = new Adagrad();
-	
-	// 注：若设置参数，必须通过修改MyParams类中静态属性
+	opt = new Adagrad(); // opt = new SGD();
+
+	map<string, MyStruct>::iterator it; it = myMap.begin(); MyStruct sec = it->second; mat matData = sec.matData;
+	int n_features = (int)matData.n_cols;
+	MyParams::alpha = 0.1; // learning_rate
+	MyParams::total_epoches = 501;
+	MyParams::score_max = 8.9;
+	MyParams::score_min = 6.0;
+	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
+	MyParams::n_hidden = 50;
+	MyParams::n_output_classes = 10;
+	MyParams::Wxh = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
+	MyParams::Whh = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Why = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
+	MyParams::bh = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
+
 	RNN rnn = RNN();
-	rnn.trainMultiThread(myMap, opt, 8);
-	// rnn.train(myMap, opt); // train RNN
+	int n_threads = 8; // 线程数目
+	rnn.trainMultiThread(myMap, opt, n_threads); // train RNN
+	// rnn.train(myMap, opt); 
 
 	// n_h 100, 5, 0.01, epoches 501,	SGD:	 dura 66s, loss 
 	// n_h 100, 5, 0.01, epoches 501,	Adagrad: dura 94s, loss 
 	// n_h 50, 5, 0.01,	epoches 501,	Adagrad: dura 50s, loss , accu 0.9
 	// n_h 50, 5, 0.1, epoches 501,		Adagrad: dura 48.6, loss 0.01, accu 1
 	// n_h 50, 5, 0.01, epoches 501,	SGD:	 dura 40, loss 0.045, accu 1
-	
-	rnn.saveParams(); // save params in txt
+	// save params in txt
+
+	rnn.saveParams(); 
 
 	delete opt;
 }
 
+/*
+	test部分，在matlab中做。
+	matlab需要train之后的参数。
+*/
 void test_rnn()
 {
 	// load params from txt
@@ -296,12 +300,18 @@ int main()
 	// ------------------------ main code -------------------------------
 	//read_write();
 
-	//show_myMap();
+	show_myMap();
 	
 	//train_rnn(); 
 	// 单线程 55s，双线程49s, 四线程37s, 
 	// 四线程（async）17.6s, 六线程16s，八线程14s，十线程14.2s
 	// 注意：电源高性能模式。
+	// 八线程 73s => hidden 50, alpha 0.1, epoches 501, n_classes 10 => loss 0.12, accu 0.89 (max 0.947)
+	// 八线程 75s => hidden 50, alpha 0.1, epoches 501, n_classes 15 => loss 0.25, accu 0.84
+	// 八线程 105s => hidden 100, alpha 0.1, epoches 501, n_classes 10 => loss 0.11, accu 0.89
+	// 八线程 146s => hidden 50, alpha 0.1, epoches 1001, n_classes 10 => loss 0.087, accu 0.89
+	// 一线程 275s => hidden 50, alpha 0.1, epoches 501, n_classes 10 => loss 0.78, accu 0.63 (max 0.947)
+
 
 
 	// 使用训练好的参数，对现有场景测试，left_clip 增加到10%, right_clip 一半
@@ -311,6 +321,16 @@ int main()
 
 
 	// ----------------- 测试代码 ---------------------
+
+	// arma::uvec
+	/*
+	arma::uvec v(3);
+	v(0) = 10;
+	v(1) = 11;
+	v(2) = 12;
+	cout << v << endl;
+	printf("%d", v(0));*/
+
 
 	// 测试 类的静态属性，
 	/*

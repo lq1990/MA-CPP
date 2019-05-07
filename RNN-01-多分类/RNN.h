@@ -31,20 +31,6 @@ public:
 	RNN();
 	~RNN();
 
-	/*
-		n_out_classes: 将回归问题转化为分类问题，类别数目可先设置少些，再慢慢增加。可更好理解特征与参数关系。
-	
-	RNN(int n_hidden, int n_output_classes, 
-		double alpha, int total_steps, 
-		double score_max, double score_min);
-	*/
-
-	/* 
-		初始化模型参数
-	*/
-	void initParams(map<string, MyStruct> myMap);
-
-
 	static void clip(mat& matrix, double maxVal, double minVal);
 
 	/*
@@ -59,12 +45,7 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
-	map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false);
-
-	/*
-		静态方法。供给多线程train
-	*/
-	static map<string, mat> lossFunMultiThread(mat inputs, double score, mat hprev, vector<double>& true_false);
+	static map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
 
 	/*
 		train params of rnn-model.
@@ -122,6 +103,7 @@ private:
 	vector<double> lossAllVec; // 记录loss
 	vector<double> loss_mean_each_epoch;
 	vector<double> accuracy_each_epoch;
+	arma::Mat<short> log_target_prediction;
 	static std::mutex mtx;
 };
 
