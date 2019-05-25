@@ -21,9 +21,6 @@
     <ClCompile Include="RNN.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="SGD.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Adagrad.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

@@ -127,7 +127,6 @@
     <ClCompile Include="DemoMultiThread.cpp" />
     <ClCompile Include="MyParams.cpp" />
     <ClCompile Include="RNN.cpp" />
-    <ClCompile Include="SGD.cpp" />
     <ClCompile Include="源.cpp" />
   </ItemGroup>
   <ItemGroup>

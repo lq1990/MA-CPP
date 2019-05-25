@@ -1,0 +1,12 @@
+﻿当前文件夹内
+从matlab中转过来的数据是 dataSScaling
+在C++中被存成Map格式，
+key为 场景名，
+value为 struct {id,score, matData}。
+
+
+此种方式可被改善。
+从matlab过来的是 listStruct [{id, score, matData},{},...]
+在C++中依然使用 listStruct格式存储，
+list相比Map更易遍历、访问、乱序 etc。
+改善版本请看 ../RNN-02

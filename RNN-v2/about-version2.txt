@@ -1,0 +1,6 @@
+in version1:
+	map<string, MyStruct> is used to store data "dataSScaling.mat" from Matlab.
+	map, a kind of data structure, is not convenient to do index and shuffle operations.
+
+in version2:
+	vector<MyStruct> is used to store data "listStructTrain.mat" from Matlab.
