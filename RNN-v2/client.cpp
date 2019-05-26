@@ -111,7 +111,7 @@ void show_myListStruct()
 	W b 经过CV验证，已经最优
 	load W b to predict listStructTest
 */
-void predictListStruct(const char* fileName)
+void loadWbToPredictListStruct(const char* fileName)
 {
 	//const char* fileName = "listStructTest";
 
@@ -139,7 +139,9 @@ void predictListStruct(const char* fileName)
 		cout << fileName << " predit scenario id: \t" << first.id << "\t"
 			<< "target score:  " << first.score << "\t"
 			<< "idx target - prediction: " << idx_target << " - " << idx_pred << "\t"
-			<< "loss: " << loss << endl;
+			<< "loss: " << loss 
+			<< (idx_target==idx_pred ? " true " : " ---false ")
+			<< endl;
 
 		vecLossMean.push_back(loss);
 		true_false.push_back((idx_target==idx_pred ? 1 : 0));
@@ -150,9 +152,9 @@ void predictListStruct(const char* fileName)
 }
 
 /*
-	输出 listStructCV loss mean
+	输出 listStruct CV/Train loss mean
 */
-void calcPredLossMean(map<string, arma::mat> mp, const char* fileName, double& lossMean, double& accu)
+void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, double& lossMean, double& accu)
 {
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
 
@@ -216,9 +218,10 @@ void train_rnn()
 	double globalCVMinLossMean = INFI;
 	double globalCVMaxAccu = -INFI;
 
-	mat matLambdaLossMeanAccu(100, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
-	int i = 0;
-	for (double lambda = 0; lambda < 0.500001; lambda+=0.01)
+	double maxLambda = 0.6000001;
+	double intervalLambda = 0.01;
+	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 1, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
+	for (double lambda = 0, i = 0; lambda < maxLambda; lambda+= intervalLambda, i++)
 	{
 		// 1. 改变lambda，会得到不同的参数
 		rnn.trainMultiThread(listStructTrain, opt, n_threads, lambda); // train RNN
@@ -227,20 +230,19 @@ void train_rnn()
 		map<string, arma::mat> mp = rnn.getParams();
 
 		double cvLossMean, cvAccu;
-		calcPredLossMean(mp, "listStructCV", cvLossMean, cvAccu); // 计算 CV数据集的 lossMean
+		calcPredLossMeanAccu(mp, "listStructCV", cvLossMean, cvAccu); // 计算 CV数据集的 lossMean
 		double trainLossMean, trainAccu;
-		calcPredLossMean(mp, "listStructTrain", trainLossMean, trainAccu); // 计算 Train数据集的 lossMean
+		calcPredLossMeanAccu(mp, "listStructTrain", trainLossMean, trainAccu); // 计算 Train数据集的 lossMean
 
 		cout << "lambda: " << lambda << endl
 			<< "DataSet\t" << "lossMean" << "\t" << "Accu" << endl
 			<< "CV     \t" << cvLossMean << "\t\t" << cvAccu << endl
 			<< "Train  \t" << trainLossMean << "\t\t" << trainAccu << endl;
-		matLambdaLossMeanAccu(i, 0) = lambda;
-		matLambdaLossMeanAccu(i, 1) = cvLossMean;
-		matLambdaLossMeanAccu(i, 2) = trainLossMean;
-		matLambdaLossMeanAccu(i, 3) = cvAccu;
-		matLambdaLossMeanAccu(i, 4) = trainAccu;
-		i++;
+		matLambdaLossMeanAccu_CV_Train(i, 0) = lambda;
+		matLambdaLossMeanAccu_CV_Train(i, 1) = cvLossMean;
+		matLambdaLossMeanAccu_CV_Train(i, 2) = trainLossMean;
+		matLambdaLossMeanAccu_CV_Train(i, 3) = cvAccu;
+		matLambdaLossMeanAccu_CV_Train(i, 4) = trainAccu;
 		// 3. 最后，找到 最大accu 或 最小lossmean 对应的参数，以最大accu为主
 		if (cvAccu > globalCVMaxAccu || (cvAccu == globalCVMaxAccu && cvLossMean < globalCVMinLossMean))
 		{
@@ -255,10 +257,60 @@ void train_rnn()
 
 		cout << "======================================================================================" << endl << endl;
 	}
-	matLambdaLossMeanAccu.save("matLambdaLossMeanAccu.txt", file_type::raw_ascii);
+
+	matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 	delete opt;
 }
 
+void train_rnn_withALambda(const char* fileName, double lambda)
+{
+	vector<SceStruct> listStruct;
+	if (fileName == "listStructTrainCV")
+	{
+		vector<SceStruct> listStructTrain = read_write("listStructTrain");
+		vector<SceStruct> listStructCV = read_write("listStructCV");
+
+		for (int i = 0; i < listStructTrain.size(); i++)
+		{
+			listStruct.push_back(listStructTrain[i]);
+		}
+		for (int i = 0; i < listStructCV.size(); i++)
+		{
+			listStruct.push_back(listStructCV[i]);
+		}
+	}
+	else
+	{
+		listStruct = read_write(fileName);
+	}
+
+
+	AOptimizer* opt = NULL; // optimizer
+	opt = new Adagrad(); // opt = new SGD();
+
+	vector<SceStruct>::iterator it; it = listStruct.begin(); mat matData = it->matDataZScore;
+	int n_features = (int)matData.n_cols;
+	MyParams::alpha = 0.1; // learning_rate
+	MyParams::total_epoches = 501;
+	MyParams::score_max = 8.9;
+	MyParams::score_min = 6.0;
+	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
+	MyParams::n_hidden = 50;
+	MyParams::n_output_classes = 10;
+	MyParams::Wxh = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
+	MyParams::Whh = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Why = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
+	MyParams::bh = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
+
+	RNN rnn = RNN();
+	int n_threads = 8; // 线程数目
+
+	rnn.trainMultiThread(listStruct, opt, n_threads, lambda); // train RNN
+	rnn.saveParams();
+
+	delete opt;
+}
 
 int main()
 {
@@ -272,15 +324,42 @@ int main()
 
 	//train_rnn();
 
+	double optLambda = 0.19; // 0.25, 0.19
+	train_rnn_withALambda("listStructTrainCV", optLambda);
 
-	//predictListStruct("listStructTrain");
-	//cout << endl;
-	//predictListStruct("listStructCV");
-	//cout << endl;
-	//predictListStruct("listStructTest");
 
+	loadWbToPredictListStruct("listStructTrain"); cout << endl;
+	loadWbToPredictListStruct("listStructCV"); cout << endl;
+	loadWbToPredictListStruct("listStructTest");
+	// lambda: 0.25, use listStructTrain,		train/cv/test: 0.36 / 0.57 / 0.28
+	// lambda: 0.25, use listStructTrainCV,		train/cv/test: 0.5 / 0.57 / 0.286
+	// lambda: 0.19, use listStructTrain,		train/cv/test: 0.77 / 0.43 / 0.14
+	// lambda: 0.19, use listStructTrainCV,		train/cv/test: 0.68 / 0.71 / 0.286 , OK
 	
 	// ======================== try =======================
+
+	// 比较char
+	/*const char* fileName = "listStructTrainCV";
+	if (fileName == "listStructTrainCV")
+	{
+		cout << "same" << endl;
+	}
+	else
+	{
+		cout << "not same" << endl;
+	}*/
+
+	// 试验 mat的应该高
+	/*double maxLambda = 0.5000001;
+	double intervalLambda = 0.01;
+	mat m1(maxLambda/intervalLambda + 1, 1, fill::zeros);
+	for (double lambda = 0, i = 0; lambda < maxLambda; lambda += intervalLambda, i++)
+	{
+		cout << "lambda: " << lambda << ",\t i: " << i << endl;
+		m1(i, 0) = i;
+	}
+
+	m1.print("m1");*/
 
 	// 试验打印格式
 	//cout << "lambda: " << 1.5 << endl
