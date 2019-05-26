@@ -18,7 +18,10 @@
 using namespace std;
 using namespace arma;
 
-typedef struct MyStruct
+/*
+	SceStruct stores infos of Scenarios
+*/
+typedef struct SceStruct
 {
 	double id;
 	double score;
@@ -46,20 +49,20 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
-	static map<string, mat> lossFun(mat inputs, double score, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
+	static map<string, mat> lossFun(mat inputs, double score, double lambda, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
 
 	/*
 		train params of rnn-model.
 		myMap: 存储所有场景score和matData的map。
 	*/
-	void train(map<string, MyStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
+	void train(map<string, SceStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
 
 	/*
 		若在 train中，实验单线程进行for循环 it+=2，一次计算两个场景，求和dW再update参数。若可行，则可用多线程了。
 	*/
-	void trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, int n_threads);
+	void trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, int n_threads, double lambda);
 
-	void test();
+	static void predictOneScenario(mat Wxh, mat Whh, mat Why, mat bh, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction);
 
 	/*
 		封装前传，可供train test使用，提高代码复用。

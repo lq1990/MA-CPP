@@ -41,16 +41,9 @@ public:
 		return m1;
 	}
 
-	//static mat vector2mat(vector<double> vec)
-	//{
-	//	mat m1(vec.size(), 1);
-	//	for (int i = 0; i < vec.size(); i++)
-	//	{
-	//		m1(i, 0) = vec[i];
-	//	}
-	//	return m1;
-	//}
-
+	/*
+		get mean of vector
+	*/
 	static double mean_vector(vector<T> vec)
 	{
 		double sum = 0;
@@ -62,16 +55,6 @@ public:
 		return mean_vec;
 	}
 
-	//static double mean_vector(vector<double> vec)
-	//{
-	//	double sum = 0;
-	//	for (int i = 0; i < vec.size(); i++)
-	//	{
-	//		sum += vec[i];
-	//	}
-	//	double mean_vec = sum / vec.size();
-	//	return mean_vec;
-	//}
 
 	/*
 		对dPVec中存储的所有mat，进行elementwise 的平方、求和、sqrt。

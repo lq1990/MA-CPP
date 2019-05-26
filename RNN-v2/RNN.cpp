@@ -32,7 +32,6 @@ RNN::RNN()
 	this->Why = MyParams::Why;
 	this->bh = MyParams::bh;
 	this->by = MyParams::by;
-
 }
 
 
@@ -54,7 +53,7 @@ RNN::RNN(int n_hidden, int n_output_classes = 3,
 }*/
 
 
-void RNN::train(map<string, MyStruct> myMap, AOptimizer* opt)
+void RNN::train(map<string, SceStruct> myMap, AOptimizer* opt)
 {
 	// init memory，用于在 Adagrad中，计算L2范式，平方 求和 开根
 	mat mdWxh = arma::zeros<mat>(Wxh.n_rows, Wxh.n_cols);
@@ -79,7 +78,7 @@ void RNN::train(map<string, MyStruct> myMap, AOptimizer* opt)
 	*/
 	for (int i = 0; i < this->total_epoches; i++)
 	{
-		map<string, MyStruct>::iterator ascenario;
+		map<string, SceStruct>::iterator ascenario;
 		true_false.clear(); // 清空
 		loss_one_epoch.clear();
 		/*
@@ -90,13 +89,13 @@ void RNN::train(map<string, MyStruct> myMap, AOptimizer* opt)
 			ascenario != myMap.end();
 			ascenario++)
 		{
-			MyStruct sec = ascenario->second;
+			SceStruct sec = ascenario->second;
 			arma::mat matData = sec.matData;
 			double score = sec.score;
 			hprev = arma::zeros<mat>(this->n_hidden, 1);
 
 			// init hprev，使用每一个场景训练模型时，hprev 都是0，即hs[-1]=0
-			map<string, mat> mp = lossFun(matData, score, hprev, true_false, log_target, log_prediction);
+			map<string, mat> mp = lossFun(matData, score, 0, hprev, true_false, log_target, log_prediction);
 
 			arma::mat loss = mp["loss"];
 			arma::mat dWxh = mp["dWxh"];
@@ -143,7 +142,7 @@ void RNN::train(map<string, MyStruct> myMap, AOptimizer* opt)
 	this->accuracy_each_epoch = accuracy_each_epoch;
 }
 
-void RNN::trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, int n_threads)
+void RNN::trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, int n_threads, double lambda)
 {
 	// init memory，用于在 Adagrad中，计算L2范式，平方 求和 开根
 	mat mdWxh = arma::zeros<mat>(Wxh.n_rows, Wxh.n_cols);
@@ -171,7 +170,7 @@ void RNN::trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, in
 	*/
 	for (int i = 0; i < this->total_epoches; i++)
 	{
-		vector<MyStruct>::iterator ascenario;
+		vector<SceStruct>::iterator ascenario;
 		true_false.clear(); // 清空
 		loss_one_epoch.clear();
 
@@ -188,8 +187,8 @@ void RNN::trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, in
 				arma::mat matData = ascenario->matDataZScore; // 使用 zscore norm 的matData
 				double score = ascenario->score;
 
-				hprev = arma::zeros<mat>(this->n_hidden, 1);
-				vec_future.push_back(async(RNN::lossFun, matData, score, hprev, std::ref(true_false), std::ref(log_target), std::ref(log_prediction)));
+				hprev = arma::zeros<mat>(this->n_hidden, 1); // for each scenario, hprev is 0
+				vec_future.push_back(async(RNN::lossFun, matData, score, lambda, hprev, std::ref(true_false), std::ref(log_target), std::ref(log_prediction)));
 			}
 
 			// 清零。在多个线程计算之后，get结果 dW db
@@ -217,6 +216,7 @@ void RNN::trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, in
 				// print loss
 				if (i % 100 == 0)
 				{
+					// 把此epoch中的每个场景的 loss 打印
 					cout << "				loss: " << loss(0, 0) << endl;
 				}
 			}
@@ -264,6 +264,44 @@ void RNN::trainMultiThread(vector<MyStruct> listStructTrain, AOptimizer* opt, in
 	this->accuracy_each_epoch = accuracy_each_epoch;
 }
 
+void RNN::predictOneScenario(mat Wxh, mat Whh, mat Why, mat bh, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction)
+{
+	MyParams::n_hidden = Whh.n_cols; // predict 时修改
+	MyParams::n_output_classes = by.n_rows; // predict时修改
+
+	mat targets = score2onehot(score); // score => targets(format: onehot)
+
+	map<int, mat> xs, hs, ys, ps;
+
+	mat hprev = arma::zeros<mat>(RNN::n_hidden, 1);
+	hs[-1] = hprev; // 默认是 深拷贝
+	mat loss_tmp = arma::zeros<mat>(1, 1);
+
+	for (int t = 0; t < inputs.n_rows; t++)
+	{
+		// 对inputs一行一行进行，到最后一行时，有一个label
+		xs[t] = inputs.row(t).t(); // 把行转置为列向量, (#features 20,1)
+		hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
+		// (100, 20)(20,1) + (100,100)(100,1) + (100,1) = (100,1)
+		if (t == inputs.n_rows - 1)
+		{
+			ys[t] = Why * hs[t] + by; // (#classes 3, 100)(100,1) + (3,1) = (3,1)
+
+			mat sum_exp = arma::sum(arma::exp(ys[t]), 0);
+			ps[t] = arma::exp(ys[t]) / sum_exp(0, 0); // (3,1) softmax
+
+			uvec fuvec = arma::find(targets == 1); // index_targets
+			loss_tmp += -log(ps[t](fuvec(0)));
+
+			uvec idx_max_ps = arma::index_max(ps[t], 0); // index_prediction
+			
+			loss = loss_tmp(0, 0);
+			idx_target = fuvec(0);
+			idx_prediction = idx_max_ps(0);
+		}
+	}
+}
+
 void RNN::saveParams()
 {
 	this->Wxh.save("Wxh.txt", file_type::raw_ascii);
@@ -283,14 +321,12 @@ void RNN::saveParams()
 
 }
 
-map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction)
+map<string, mat> RNN::lossFun(mat inputs, double score, double lambda, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction)
 {
 	// 注：参数要在这个函数体外部提前初始化。
+	
+	mat targets = score2onehot(score); // score => targets(format: onehot)
 
-	// score => targets(format: onehot)
-	mat targets = score2onehot(score);
-
-	//
 	map<int, mat> xs, hs, ys, ps; // 使用map的原因：前传中计算的值会被保存，在BPTT中可使用。
 	hs[-1] = hprev; // 默认是 深拷贝
 	mat loss = arma::zeros<mat>(1, 1);
@@ -309,7 +345,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 			// (#classes 3, 100)(100,1) + (3,1) = (3,1)
 
 			mat sum_exp = arma::sum(arma::exp(ys[t]), 0);
-			ps[t] = arma::exp(ys[t]) / sum_exp(0, 0); // (3,1)
+			ps[t] = arma::exp(ys[t]) / sum_exp(0, 0); // (3,1) softmax
 
 			uvec fuvec = arma::find(targets == 1); // index_targets
 			loss += -log(ps[t](fuvec(0)));
@@ -349,14 +385,15 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 			dy = ps[t];
 			uvec fuvec = arma::find(targets == 1);
 			dy[fuvec(0)] -= 1;
-			dWhy += dy * hs[t].t();
+			//dWhy += dy * hs[t].t();
+			dWhy += dy * hs[t].t() + lambda * Why;
 			dby += dy;
 
 			dh = Why.t() * dy + dhnext;
 			dhraw = (1 - hs[t] % hs[t]) % dh;
 			dbh += dhraw;
-			dWxh += dhraw * xs[t].t();
-			dWhh += dhraw * hs[t - 1].t();
+			dWxh += dhraw * xs[t].t() + lambda * Wxh;
+			dWhh += dhraw * hs[t - 1].t() + lambda * Whh;
 			dhnext = Whh.t() * dhraw;
 		}
 		else
@@ -414,9 +451,7 @@ mat RNN::score2onehot(double score)
 	double pos = (score - score_min)
 		/ (score_max - score_min + pow(10, -8)); // 分母加上 1e-8, 避免score是 max时的index越界
 
-//cout << "pos/part: " << pos / part << endl;
 	double pos_idx = std::floor(pos / part);
-	//cout << "pos_idx: " << pos_idx << endl;
 
 	mat zs = arma::zeros<mat>(n_output_classes, 1);
 	zs(pos_idx, 0) = 1;
@@ -432,6 +467,7 @@ map<string, arma::mat> RNN::getParams()
 	mymap["Why"] = this->Why;
 	mymap["bh"] = this->bh;
 	mymap["by"] = this->by;
+
 	mymap["lossAllVec"] = this->lossAllVec;
 
 	return mymap;
