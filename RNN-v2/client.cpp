@@ -191,6 +191,9 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, doubl
 	accu = MyLib<double>::mean_vector(true_false);
 }
 
+/*
+	目的：通过 train/cv dataset寻找 optimal lambda
+*/
 void train_rnn()
 {
 	vector<SceStruct> listStructTrain = read_write("listStructTrain");
@@ -201,16 +204,19 @@ void train_rnn()
 	vector<SceStruct>::iterator it; it = listStructTrain.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 501;
+	MyParams::total_epoches = 301;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
 	MyParams::n_hidden = 50;
 	MyParams::n_output_classes = 10;
-	MyParams::Wxh = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
-	MyParams::Whh = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
-	MyParams::Why = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
-	MyParams::bh = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::Wxh1 = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
+	MyParams::Wh1h1 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh1h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh2h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh2y = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
+	MyParams::bh1 = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::bh2 = arma::zeros(MyParams::n_hidden, 1);
 	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
 
 	RNN rnn = RNN();
@@ -219,10 +225,14 @@ void train_rnn()
 	double globalCVMaxAccu = -INFI;
 
 	double maxLambda = 0.6000001;
-	double intervalLambda = 0.01;
+	double intervalLambda = 0.1;
 	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 1, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
-	for (double lambda = 0, i = 0; lambda < maxLambda; lambda+= intervalLambda, i++)
+	for (double lambda = 0, i = 0; lambda < maxLambda; lambda += intervalLambda, i++)
 	{
+		// 注：第n次训练出来的参数，到了第n+1次会被作为init初值使用。
+		// 优点：会提高第n+1次训练的收敛速度。
+		// 缺点：有可能陷入局部最优。
+		
 		// 1. 改变lambda，会得到不同的参数
 		rnn.trainMultiThread(listStructTrain, opt, n_threads, lambda); // train RNN
 	
@@ -291,16 +301,19 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	vector<SceStruct>::iterator it; it = listStruct.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 501;
+	MyParams::total_epoches = 251;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
-	MyParams::n_hidden = 50;
+	MyParams::n_hidden = 30;
 	MyParams::n_output_classes = 10;
-	MyParams::Wxh = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
-	MyParams::Whh = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
-	MyParams::Why = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
-	MyParams::bh = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::Wxh1 = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
+	MyParams::Wh1h1 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh1h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh2h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+	MyParams::Wh2y = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
+	MyParams::bh1 = arma::zeros(MyParams::n_hidden, 1);
+	MyParams::bh2 = arma::zeros(MyParams::n_hidden, 1);
 	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
 
 	RNN rnn = RNN();
@@ -324,13 +337,14 @@ int main()
 
 	//train_rnn();
 
-	double optLambda = 0.19; // 0.25, 0.19
+	double optLambda = 0.0; // 0.25, 0.19 error ==> 
 	train_rnn_withALambda("listStructTrainCV", optLambda);
 
 
-	loadWbToPredictListStruct("listStructTrain"); cout << endl;
-	loadWbToPredictListStruct("listStructCV"); cout << endl;
-	loadWbToPredictListStruct("listStructTest");
+	//loadWbToPredictListStruct("listStructTrain"); cout << endl;
+	//loadWbToPredictListStruct("listStructCV"); cout << endl;
+	//loadWbToPredictListStruct("listStructTest");
+
 	// lambda: 0.25, use listStructTrain,		train/cv/test: 0.36 / 0.57 / 0.28
 	// lambda: 0.25, use listStructTrainCV,		train/cv/test: 0.5 / 0.57 / 0.286
 	// lambda: 0.19, use listStructTrain,		train/cv/test: 0.77 / 0.43 / 0.14

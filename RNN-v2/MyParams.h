@@ -17,10 +17,13 @@ public:
 	static int n_features;
 	static int n_hidden;
 	static int n_output_classes;
-	static mat Wxh;
-	static mat Whh;
-	static mat Why;
-	static mat bh;
+	static mat Wxh1;
+	static mat Wh1h1;
+	static mat Wh1h2;
+	static mat Wh2h2;
+	static mat Wh2y;
+	static mat bh1;
+	static mat bh2;
 	static mat by;
 };
 

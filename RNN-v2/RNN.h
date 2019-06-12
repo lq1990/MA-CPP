@@ -26,7 +26,7 @@ typedef struct SceStruct
 	double id;
 	double score;
 	arma::mat matData;
-	arma::mat matDataZScore;
+	arma::mat matDataZScore; // normalized matData by using zscore-norm i.e. (data-mean)/std
 };
 
 class RNN
@@ -49,14 +49,9 @@ public:
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
 	*/
-	static map<string, mat> lossFun(mat inputs, double score, double lambda, mat hprev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
+	static map<string, mat> lossFun(mat inputs, double score, double lambda, mat h1prev, mat h2prev, vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
 
-	/*
-		train params of rnn-model.
-		myMap: 存储所有场景score和matData的map。
-	*/
-	void train(map<string, SceStruct> myMap, AOptimizer* opt); // myMap: scenarios: id, score, matData
-
+	
 	/*
 		若在 train中，实验单线程进行for循环 it+=2，一次计算两个场景，求和dW再update参数。若可行，则可用多线程了。
 	*/
@@ -76,7 +71,7 @@ public:
 		目的：模型训练后，W b存储以txt格式到本地。在test中，读取txt拿到W b，用其设置RNN参数。
 		保存参数到本地，到使用时即test时，读取本地文件，可避免再训练模型耗时。
 	*/
-	void setParams(mat Wxh, mat Whh, mat Why, mat bh, mat by);
+	void setParams(mat Wxh1, mat Wh1h1, mat Wh1h2, mat Wh2h2, mat Wh2y, mat bh1, mat bh2, mat by);
 
 	/*
 		将 params save到本地
@@ -99,10 +94,13 @@ private:
 	// 结合n_output_classes ，将具体的一个场景的score转换为 onehot
 	// eg. max: 9.0, min:6.1, 分3份，
 	// 则 6.1-7.0: [1,0,0]; 7.1-8.0: [0,1,0]; 8.1-9.0: [0,0,1]; 
-	static mat Wxh;
-	static mat Whh;
-	static mat Why;
-	static mat bh;
+	static mat Wxh1;
+	static mat Wh1h1;
+	static mat Wh1h2;
+	static mat Wh2h2;
+	static mat Wh2y;
+	static mat bh1;
+	static mat bh2;
 	static mat by;
 	vector<double> lossAllVec; // 记录loss
 	vector<double> loss_mean_each_epoch;
