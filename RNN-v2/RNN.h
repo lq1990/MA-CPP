@@ -57,7 +57,7 @@ public:
 	*/
 	void trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, int n_threads, double lambda);
 
-	static void predictOneScenario(mat Wxh, mat Whh, mat Why, mat bh, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction);
+	static void predictOneScenario(mat Wxh1, mat Wh1h1, mat Wh1h2, mat Wh2h2, mat Wh2y, mat bh1, mat bh2, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction);
 
 	/*
 		封装前传，可供train test使用，提高代码复用。

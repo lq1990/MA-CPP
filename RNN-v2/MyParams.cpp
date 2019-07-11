@@ -1,10 +1,10 @@
 ﻿#include "MyParams.h"
 
 double	MyParams::alpha = 0.1; // learning_rate
-int		MyParams::total_epoches = 301;
+int		MyParams::total_epoches = 501;
 double	MyParams::score_max = 8.9;
 double	MyParams::score_min = 6.0;
-int		MyParams::n_features = 17;
+int		MyParams::n_features = 17; // 当前两个hidden layer neurons 数目一样
 int		MyParams::n_hidden = 50; // predict 时注意修改
 int		MyParams::n_output_classes = 10; // predict时注意修改
 

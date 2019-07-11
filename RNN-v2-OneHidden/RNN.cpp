@@ -386,7 +386,8 @@ map<string, mat> RNN::lossFun(mat inputs, double score, double lambda, mat hprev
 			uvec fuvec = arma::find(targets == 1);
 			dy[fuvec(0)] -= 1;
 			//dWhy += dy * hs[t].t();
-			dWhy += dy * hs[t].t() + lambda * Why;
+			dWhy += dy * hs[t].t() + lambda * Why; 
+			// 注意：W只需在一次FP BPTT中 加一次 lambda*W，而不必for不断加。
 			dby += dy;
 
 			dh = Why.t() * dy + dhnext;
@@ -401,8 +402,8 @@ map<string, mat> RNN::lossFun(mat inputs, double score, double lambda, mat hprev
 			dh = dhnext;
 			dhraw = (1 - hs[t] % hs[t]) % dh;
 			dbh += dhraw;
-			dWxh += dhraw * xs[t].t() + lambda * Wxh;
-			dWhh += dhraw * hs[t - 1].t() + lambda * Whh;
+			dWxh += dhraw * xs[t].t() + 0 * Wxh; 
+			dWhh += dhraw * hs[t - 1].t() + 0 * Whh;
 			dhnext = Whh.t() * dhraw;
 		}
 	}

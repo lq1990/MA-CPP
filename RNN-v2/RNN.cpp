@@ -166,7 +166,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, i
 
 		if (i % 10 == 0)
 		{
-			cout << "epoch: " << i << ", loss_mean_this_epoch: " << loss_this_epoch
+			cout << "lambda: " << lambda << ", epoch: " << i << ", loss_mean_this_epoch: " << loss_this_epoch
 				<< ", accu_this_epoch: " << accu_this_epoch << endl;
 		}
 
@@ -193,28 +193,31 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, i
 	this->accuracy_each_epoch = accuracy_each_epoch;
 }
 
-void RNN::predictOneScenario(mat Wxh, mat Whh, mat Why, mat bh, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction)
+void RNN::predictOneScenario(mat Wxh1, mat Wh1h1, mat Wh1h2, mat Wh2h2, mat Wh2y, mat bh1, mat bh2, mat by, mat inputs, double score, double& loss, int& idx_target, int& idx_prediction)
 {
-	MyParams::n_hidden = Whh.n_cols; // predict 时修改
+	MyParams::n_hidden = Wh1h1.n_cols; // predict 时修改
 	MyParams::n_output_classes = by.n_rows; // predict时修改
 
 	mat targets = score2onehot(score); // score => targets(format: onehot)
 
-	map<int, mat> xs, hs, ys, ps;
+	map<int, mat> xs, h1s, h2s, ys, ps;
 
-	mat hprev = arma::zeros<mat>(RNN::n_hidden, 1);
-	hs[-1] = hprev; // 默认是 深拷贝
+	mat h1prev = arma::zeros<mat>(RNN::n_hidden, 1);
+	mat h2prev = arma::zeros<mat>(RNN::n_hidden, 1);
+
+	h1s[-1] = h1prev; // 默认是 深拷贝
+	h2s[-1] = h2prev; // 默认是 深拷贝
 	mat loss_tmp = arma::zeros<mat>(1, 1);
 
 	for (int t = 0; t < inputs.n_rows; t++)
 	{
-		// 对inputs一行一行进行，到最后一行时，有一个label
 		xs[t] = inputs.row(t).t(); // 把行转置为列向量, (#features 20,1)
-		hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
-		// (100, 20)(20,1) + (100,100)(100,1) + (100,1) = (100,1)
+		h1s[t] = arma::tanh(Wxh1 * xs[t] + Wh1h1 * h1s[t - 1] + bh1); // (100, 20)(20,1) + (100,100)(100,1) + (100,1) = (100,1)
+		h2s[t] = arma::tanh(Wh1h2 * h1s[t] + Wh2h2 * h2s[t - 1] + bh2);
+
 		if (t == inputs.n_rows - 1)
 		{
-			ys[t] = Why * hs[t] + by; // (#classes 3, 100)(100,1) + (3,1) = (3,1)
+			ys[t] = Wh2y * h2s[t] + by; // (#classes 3, 100)(100,1) + (3,1) = (3,1)
 
 			mat sum_exp = arma::sum(arma::exp(ys[t]), 0);
 			ps[t] = arma::exp(ys[t]) / sum_exp(0, 0); // (3,1) softmax
@@ -349,15 +352,15 @@ map<string, mat> RNN::lossFun(mat inputs, double score, double lambda, mat h1pre
 			dh2raw = (1 - h2s[t] % h2s[t]) % dh2;
 			dbh2 += dh2raw;
 
-			dWh1h2 += dh2raw * h1s[t].t() + lambda * Wh1h2;
-			dWh2h2 += dh2raw * h2s[t - 1].t() + lambda * Wh2h2;
+			dWh1h2 += dh2raw * h1s[t].t() + 0 * Wh1h2; // lam
+			dWh2h2 += dh2raw * h2s[t - 1].t() + 0 * Wh2h2; // lam
 			dh2next = Wh2h2.t() * dh2raw;
 
 			dh1 = Wh1h2.t() * dh2raw + dh1next;
 			dh1raw = (1 - h1s[t] % h1s[t]) % dh1;
 			dbh1 += dh1raw;
-			dWxh1 += dh1raw * xs[t].t() + lambda * Wxh1;
-			dWh1h1 += dh1raw * h1s[t - 1].t() + lambda * Wh1h1;
+			dWxh1 += dh1raw * xs[t].t() + 0 * Wxh1; // lam
+			dWh1h1 += dh1raw * h1s[t - 1].t() + 0 * Wh1h1; // lam
 			dh1next = Wh1h1.t() * dh1raw;
 		}
 	}

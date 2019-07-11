@@ -27,7 +27,7 @@ vector<SceStruct> read_write(const char* fileName)
 {
 	vector<SceStruct> vec;
 
-	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/";
+	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
 	const char* tail = ".mat";
 	char path[1000];
 	strcpy_s(path, dir);
@@ -116,12 +116,15 @@ void loadWbToPredictListStruct(const char* fileName)
 	//const char* fileName = "listStructTest";
 
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
-	//// read W b
-	mat Wxh, Whh, Why, bh, by;
-	Wxh.load("Wxh.txt", raw_ascii);
-	Whh.load("Whh.txt", raw_ascii);
-	Why.load("Why.txt", raw_ascii);
-	bh.load("bh.txt", raw_ascii);
+	// read W b
+	mat Wxh1, Wh1h1, Wh1h2, Wh2h2, Wh2y, bh1, bh2, by;
+	Wxh1.load("Wxh1.txt", raw_ascii);
+	Wh1h1.load("Wh1h1.txt", raw_ascii);
+	Wh1h2.load("Wh1h2.txt", raw_ascii);
+	Wh2h2.load("Wh2h2.txt", raw_ascii);
+	Wh2y.load("Wh2y.txt", raw_ascii);
+	bh1.load("bh1.txt", raw_ascii);
+	bh2.load("bh2.txt", raw_ascii);
 	by.load("by.txt", raw_ascii);
 
 	vector<SceStruct> listStruct = read_write(fileName);
@@ -134,7 +137,7 @@ void loadWbToPredictListStruct(const char* fileName)
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wxh, Whh, Why, bh, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
+		RNN::predictOneScenario(Wxh1, Wh1h1, Wh1h2, Wh2h2, Wh2y, bh1, bh2, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
 
 		cout << fileName << " predit scenario id: \t" << first.id << "\t"
 			<< "target score:  " << first.score << "\t"
@@ -158,11 +161,14 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, doubl
 {
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
 
-	mat Wxh, Whh, Why, bh, by;
-	Wxh = mp["Wxh"];
-	Whh = mp["Whh"];
-	Why = mp["Why"];
-	bh = mp["bh"];
+	mat Wxh1, Wh1h1, Wh1h2, Wh2h2, Wh2y, bh1, bh2, by;
+	Wxh1 = mp["Wxh1"];
+	Wh1h1 = mp["Wh1h1"];
+	Wh1h2 = mp["Wh1h2"];
+	Wh2h2 = mp["Wh2h2"];
+	Wh2y = mp["Wh2y"];
+	bh1 = mp["bh1"];
+	bh2 = mp["bh2"];
 	by = mp["by"];
 
 	vector<SceStruct> listStruct = read_write(fileName); // listStruct
@@ -176,7 +182,7 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, doubl
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wxh, Whh, Why, bh, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
+		RNN::predictOneScenario(Wxh1, Wh1h1, Wh1h2, Wh2h2, Wh2y, bh1, bh2, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
 
 		cout << "predict scenario id: " << first.id << "\t"
 			<< "target score:  " << first.score << "\t"
@@ -197,41 +203,38 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, doubl
 void train_rnn()
 {
 	vector<SceStruct> listStructTrain = read_write("listStructTrain");
-
 	AOptimizer* opt = NULL; // optimizer
 	opt = new Adagrad(); // opt = new SGD();
 
 	vector<SceStruct>::iterator it; it = listStructTrain.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 301;
+	MyParams::total_epoches = 501;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
 	MyParams::n_hidden = 50;
 	MyParams::n_output_classes = 10;
-	MyParams::Wxh1 = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
-	MyParams::Wh1h1 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
-	MyParams::Wh1h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
-	MyParams::Wh2h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
-	MyParams::Wh2y = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
-	MyParams::bh1 = arma::zeros(MyParams::n_hidden, 1);
-	MyParams::bh2 = arma::zeros(MyParams::n_hidden, 1);
-	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
-
-	RNN rnn = RNN();
-	int n_threads = 8; // 线程数目
+	
 	double globalCVMinLossMean = INFI;
 	double globalCVMaxAccu = -INFI;
-
-	double maxLambda = 0.6000001;
-	double intervalLambda = 0.1;
+	double maxLambda = 0.1000001;
+	double intervalLambda = 0.005;
 	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 1, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
-	for (double lambda = 0, i = 0; lambda < maxLambda; lambda += intervalLambda, i++)
+	for (double lambda = 0.05, i = 0; lambda < maxLambda; lambda += intervalLambda, i++)
 	{
-		// 注：第n次训练出来的参数，到了第n+1次会被作为init初值使用。
-		// 优点：会提高第n+1次训练的收敛速度。
-		// 缺点：有可能陷入局部最优。
+		// 对于每个lambda，参数要重置
+		MyParams::Wxh1 = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
+		MyParams::Wh1h1 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+		MyParams::Wh1h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+		MyParams::Wh2h2 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
+		MyParams::Wh2y = arma::randn(MyParams::n_output_classes, MyParams::n_hidden) * 0.01;
+		MyParams::bh1 = arma::zeros(MyParams::n_hidden, 1);
+		MyParams::bh2 = arma::zeros(MyParams::n_hidden, 1);
+		MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
+
+		RNN rnn = RNN();
+		int n_threads = 8; // 线程数目
 		
 		// 1. 改变lambda，会得到不同的参数
 		rnn.trainMultiThread(listStructTrain, opt, n_threads, lambda); // train RNN
@@ -265,10 +268,11 @@ void train_rnn()
 			globalCVMinLossMean = cvLossMean;
 		}
 
+
+		matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 		cout << "======================================================================================" << endl << endl;
 	}
 
-	matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 	delete opt;
 }
 
@@ -301,11 +305,11 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	vector<SceStruct>::iterator it; it = listStruct.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 251;
+	MyParams::total_epoches = 501;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
-	MyParams::n_hidden = 30;
+	MyParams::n_hidden = 50;
 	MyParams::n_output_classes = 10;
 	MyParams::Wxh1 = arma::randn(MyParams::n_hidden, MyParams::n_features) * 0.01;
 	MyParams::Wh1h1 = arma::randn(MyParams::n_hidden, MyParams::n_hidden) * 0.01;
@@ -337,13 +341,15 @@ int main()
 
 	//train_rnn();
 
-	double optLambda = 0.0; // 0.25, 0.19 error ==> 
+	/*
+	double optLambda = 0.09000001; // 0.25, 0.19 one hidden ==> 0.06, 0.09 two hidden
 	train_rnn_withALambda("listStructTrainCV", optLambda);
+*/
 
-
-	//loadWbToPredictListStruct("listStructTrain"); cout << endl;
-	//loadWbToPredictListStruct("listStructCV"); cout << endl;
-	//loadWbToPredictListStruct("listStructTest");
+	loadWbToPredictListStruct("listStructTrain"); cout << endl;
+	loadWbToPredictListStruct("listStructCV"); cout << endl;
+	loadWbToPredictListStruct("listStructTest");
+	
 
 	// lambda: 0.25, use listStructTrain,		train/cv/test: 0.36 / 0.57 / 0.28
 	// lambda: 0.25, use listStructTrainCV,		train/cv/test: 0.5 / 0.57 / 0.286
@@ -446,7 +452,7 @@ int main()
 
 	t_end = clock();
 	cout << "---------------------------------\ntime needed: "
-		<< (double)(t_end - t_begin) / CLOCKS_PER_SEC << "s" << endl;
+		<< (double)(t_end - t_begin) / CLOCKS_PER_SEC << "s" << "=> " << (double)(t_end - t_begin) / CLOCKS_PER_SEC /60.0 << "min" << endl;
 	system("pause");
 	return 0;
 }
