@@ -1,54 +1,34 @@
-﻿#include <iostream>
+﻿/*
+	RNN version 3.
+
+	The cores of RNN-v3 are CUDA and LSTM.
+
+	author: LQ
+*/
+
+#include <iostream>
 #include <armadillo>
 #include <Windows.h>
 
 #include "IOMatlab.h"
 #include "Cuda4RNN.h"
+#include "CudaMap.h"
+#include "Script.h"
+#include "MyClock.h"
 
 using namespace std;
 using namespace arma;
 
-void test()
-{
-	cout << "hello, C++" << endl;
-	// ---------------- matlab -----------------
-	std::vector<SceStruct> lstrain =
-		IOMatlab::read("listStructTrain");
-
-	cout << lstrain.size() << endl;
-	/*SceStruct first = lstrain[0];
-	cout << "id: " << first.id
-		<< ", score: " << first.score << endl
-		<< "dim: " << first.matDataZScore.n_rows
-		<< " " << first.matDataZScore.n_cols << endl;*/
-	//<< "matDataZScore: \n" << first.matDataZScore << endl;
-
-	// ============ arma ======================
-	
-
-
-	// ========= cuda ==================
-	cout << endl;
-	Cuda4RNN::cublasDemo();
-}
-
 int main()
 {
-	clock_t t_begin, t_end;
-	t_begin = clock();
+	MyClock mclock = MyClock("main");
 	// ===============================================
-
-	test();
-
-
+	
+	
 
 	
 	// ============================================
-	t_end = clock();
-	cout << "=======================\ntotal time: "
-		<< (double)(t_end - t_begin) / CLOCKS_PER_SEC
-		<< " s" << endl;
-	
-	system("pause");
+	mclock.showDuration();
+	std::system("pause");
 	return 0;
 }

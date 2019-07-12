@@ -69,3 +69,26 @@ vector<SceStruct> IOMatlab::read(const char * fileName)
 	return vec;
 }
 
+MyArray IOMatlab::mat2arr(arma::mat m)
+{
+	int M = m.n_rows;
+	int N = m.n_cols;
+	m.reshape(M*N, 1); // col-major
+
+	// array
+	float *arr;
+	arr = (float*)malloc(M*N * sizeof(float));
+	for (int i = 0; i < M*N; i++)
+	{
+		arr[i] = m(i, 0);
+	}
+
+	// return a struct
+	MyArray marr;
+	marr.arr = arr;
+	marr.size = M * N;
+	marr.n_rows_origin = M;
+	return marr;
+}
+
+

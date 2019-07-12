@@ -21,7 +21,10 @@
     <ClCompile Include="IOMatlab.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Cuda4RNN.cpp">
+    <ClCompile Include="Script.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MyClock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,5 +35,31 @@
     <ClInclude Include="Cuda4RNN.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CudaMap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Script.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MyStruct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MyClock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CudaScript.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="Cuda4RNN.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="CudaScript.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="CudaMap.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

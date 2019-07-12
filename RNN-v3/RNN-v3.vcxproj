@@ -89,6 +89,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Program Files\MATLAB\MATLAB Production Server\R2015a\extern\include;C:\Program Files\MATLAB\MATLAB Production Server\R2015a\extern\include\win64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/D"_CRT_SECURE_NO_WARNINGS" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libmat.lib;libmx.lib;libmex.lib;libeng.lib;blas_win64_MT.lib;lapack_win64_MT.lib;cublas.lib;cublas_device.lib;cuda.lib;cudadevrt.lib;cudart.lib;cudart_static.lib;cufft.lib;cufftw.lib;curand.lib;cusolver.lib;cusparse.lib;nppc.lib;nppial.lib;nppicc.lib;nppicom.lib;nppidei.lib;nppif.lib;nppig.lib;nppim.lib;nppist.lib;nppisu.lib;nppitc.lib;npps.lib;nvblas.lib;nvcuvid.lib;nvgraph.lib;nvml.lib;nvrtc.lib;OpenCL.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -128,12 +129,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
+    <CudaCompile Include="CudaScript.cpp" />
+    <ClCompile Include="MyClock.cpp" />
+    <ClCompile Include="Script.cpp" />
     <CudaCompile Include="Cuda4RNN.cpp" />
+    <CudaCompile Include="CudaMap.cpp" />
     <ClCompile Include="IOMatlab.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cuda4RNN.h" />
+    <ClInclude Include="CudaMap.h" />
+    <ClInclude Include="CudaScript.h" />
     <ClInclude Include="IOMatlab.h" />
+    <ClInclude Include="MyClock.h" />
+    <ClInclude Include="MyStruct.h" />
+    <ClInclude Include="Script.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
