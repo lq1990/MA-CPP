@@ -15,24 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Client.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="IOMatlab.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Script.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MyClock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MyParams.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Client.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IOMatlab.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Cuda4RNN.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="CudaMap.h">
@@ -41,24 +38,54 @@
     <ClInclude Include="Script.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MyStruct.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="MyClock.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="CudaScript.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="MyParams.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Cuda4RNN.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="cublas_thrust.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="gpu_fns.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CudaUtils.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="Cuda4RNN.cpp">
-      <Filter>源文件</Filter>
-    </CudaCompile>
     <CudaCompile Include="CudaScript.cpp">
       <Filter>源文件</Filter>
     </CudaCompile>
     <CudaCompile Include="CudaMap.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="IOMatlab.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MyArray.h">
+      <Filter>头文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MyArray.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="cublas_thrust.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="gpu_fns.cu">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="CudaUtils.cpp">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Cuda4RNN.cu">
       <Filter>源文件</Filter>
     </CudaCompile>
   </ItemGroup>

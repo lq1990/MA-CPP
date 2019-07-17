@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -130,19 +130,28 @@
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
     <CudaCompile Include="CudaScript.cpp" />
+    <CudaCompile Include="gpu_fns.cu" />
+    <CudaCompile Include="MyArray.cpp" />
+    <CudaCompile Include="cublas_thrust.cpp" />
+    <CudaCompile Include="CudaUtils.cpp" />
     <ClCompile Include="MyClock.cpp" />
+    <ClCompile Include="MyParams.cpp" />
     <ClCompile Include="Script.cpp" />
-    <CudaCompile Include="Cuda4RNN.cpp" />
+    <CudaCompile Include="Cuda4RNN.cu" />
     <CudaCompile Include="CudaMap.cpp" />
-    <ClCompile Include="IOMatlab.cpp" />
+    <CudaCompile Include="IOMatlab.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cublas_thrust.h" />
     <ClInclude Include="Cuda4RNN.h" />
     <ClInclude Include="CudaMap.h" />
     <ClInclude Include="CudaScript.h" />
+    <ClInclude Include="CudaUtils.h" />
+    <ClInclude Include="gpu_fns.h" />
     <ClInclude Include="IOMatlab.h" />
     <ClInclude Include="MyClock.h" />
-    <ClInclude Include="MyStruct.h" />
+    <CudaCompile Include="MyArray.h" />
+    <ClInclude Include="MyParams.h" />
     <ClInclude Include="Script.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -14,9 +14,9 @@ IOMatlab::~IOMatlab()
 /*
 	fileName:: listStructTrain, listStructCV
 */
-vector<SceStruct> IOMatlab::read(const char * fileName)
+thrust::device_vector<SceStruct> IOMatlab::read(const char * fileName)
 {
-	vector<SceStruct> vec;
+	thrust::device_vector<SceStruct> vec;
 
 	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
 	const char* tail = ".mat";
@@ -51,16 +51,27 @@ vector<SceStruct> IOMatlab::read(const char * fileName)
 		int rows_matDataZScore = (int)mxGetM(item_matDataZScore);
 		int cols_matDataZScore = (int)mxGetN(item_matDataZScore);
 
-		mat matTmp = mat(rows_matDataZScore*cols_matDataZScore, 1);
-		for (int i = 0; i < rows_matDataZScore*cols_matDataZScore; i++) // 把matData中数据一列列读取
+		//mat matTmp = mat(rows_matDataZScore*cols_matDataZScore, 1);
+		
+		float *arr; // stores all the elems
+		arr = (float*)malloc(rows_matDataZScore * cols_matDataZScore * sizeof(float));
+		
+		for (int i = 0; i < rows_matDataZScore*cols_matDataZScore; i++) 
+			// 把matData中数据一列列读取
 		{
-			matTmp(i, 0) = matDataZScore[i];
+			//matTmp(i, 0) = matDataZScore[i];
+			arr[i] = matDataZScore[i];
 		}
-		matTmp.reshape(rows_matDataZScore, cols_matDataZScore);
+		//matTmp.reshape(rows_matDataZScore, cols_matDataZScore);
+		MyArray *marr = new MyArray();
+		marr->size = rows_matDataZScore * cols_matDataZScore;
+		marr->n_rows_origin = rows_matDataZScore;
+		marr->arr = arr;
 
 		ms.id = id[0];
 		ms.score = score[0];
-		ms.matDataZScore = matTmp;
+		ms.matDataZScore = marr;
+		//ms.matDataZScore = matTmp;
 
 		// save ms in vector
 		vec.push_back(ms);
@@ -69,26 +80,32 @@ vector<SceStruct> IOMatlab::read(const char * fileName)
 	return vec;
 }
 
-MyArray IOMatlab::mat2arr(arma::mat m)
-{
-	int M = m.n_rows;
-	int N = m.n_cols;
-	m.reshape(M*N, 1); // col-major
 
-	// array
-	float *arr;
-	arr = (float*)malloc(M*N * sizeof(float));
-	for (int i = 0; i < M*N; i++)
-	{
-		arr[i] = m(i, 0);
-	}
-
-	// return a struct
-	MyArray marr;
-	marr.arr = arr;
-	marr.size = M * N;
-	marr.n_rows_origin = M;
-	return marr;
-}
+//MyArray* IOMatlab::mat2arr(arma::mat m)
+//{
+//	int M = m.n_rows;
+//	int N = m.n_cols;
+//	m.reshape(M*N, 1); // col-major in Armadillo
+//
+//	// array
+//	float *arr;
+//	arr = (float*)malloc(M*N * sizeof(float));
+//	for (int i = 0; i < M*N; i++)
+//	{
+//		arr[i] = m(i, 0);
+//	}
+//
+//	// return a struct
+//	MyArray *marr = new MyArray(); // 动态分配内存
+//	marr->size = M * N;
+//	marr->n_rows_origin = M;
+//	marr->arr = arr;
+//	
+//	/*marr.arr = arr;
+//	marr.size = M * N;
+//	marr.n_rows_origin = M;*/
+//
+//	return marr;
+//}
 
 

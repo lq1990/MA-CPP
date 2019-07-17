@@ -1,24 +1,33 @@
 ﻿#pragma once
 #include <mat.h>
-#include <armadillo>
 #include <vector>
 #include <iostream>
 
-#include "MyStruct.h"
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include "MyArray.h"
 
-using namespace arma;
 using namespace std;
+using namespace thrust;
 
 /*
-	Struct stores data about Scenarios from matlab
+	For one Scenario.
+	Struct stores data about Scenarios from matlab.
+	<items>
+	float id;
+	float score;
+	MyArray* matDataZScore;
+	</item>
 */
 typedef struct SceStruct
 {
 	float id;
 	float score;
-	arma::mat matData;
-	arma::mat matDataZScore;
+	MyArray* matDataZScore;
 	// normalized matData by using zscore-norm i.e. (data-mean)/std
+
+	//arma::mat matData;
+	//arma::mat matDataZScore;
 };
 
 /*
@@ -30,7 +39,7 @@ public:
 	IOMatlab();
 	~IOMatlab();
 
-	static vector<SceStruct> read(const char* fileName);
+	static thrust::device_vector<SceStruct> read(const char* fileName);
 
 	/*
 		arma::mat (M, N)
@@ -39,6 +48,6 @@ public:
 
 		ld: leading dimension of original m
 	*/
-	static MyArray mat2arr(arma::mat m);
+	//static MyArray* mat2arr(arma::mat m);
 };
 

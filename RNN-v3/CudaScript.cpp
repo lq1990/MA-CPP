@@ -119,4 +119,92 @@ void CudaScript::cublasDemo()
 	cublasDestroy(handle);
 }
 
+__global__ void addKernel(ProcPara * d_para)
+{
+	int i = threadIdx.x;
+	d_para->d_c[i] = d_para->d_a[i] + d_para->d_b[i];
+	
+}
+
+void initProcPara(ProcPara** ha_para, ProcPara** da_para, int arraySize)
+{
+	// alloc struct mem，往host和device上都分配struct mem
+	cudaMallocHost((void**)ha_para, sizeof(ProcPara));
+	cudaMalloc((void**)da_para, sizeof(ProcPara));
+
+	// temp ptr to ha_para, and malloc 借用临时指针变量，指向了一级指针，实现功能
+	ProcPara *h_para = *ha_para;
+
+	cudaMallocHost((void**)&h_para->h_a, arraySize * sizeof(int));
+	cudaMallocHost((void**)&h_para->h_b, arraySize * sizeof(int));
+	cudaMallocHost((void**)&h_para->h_c, arraySize * sizeof(int));
+
+	cudaMalloc((void**)&h_para->d_a, arraySize * sizeof(int));
+	cudaMalloc((void**)&h_para->d_b, arraySize * sizeof(int));
+	cudaMalloc((void**)&h_para->d_c, arraySize * sizeof(int));
+
+	// exchange data
+	cudaMemcpy(*da_para, *ha_para, sizeof(ProcPara), cudaMemcpyHostToDevice);
+
+}
+
+void deInitProcPara(ProcPara* h_para, ProcPara* d_para)
+{
+	cudaFreeHost(h_para->h_a);
+	cudaFreeHost(h_para->h_b);
+	cudaFreeHost(h_para->h_c);
+
+	cudaFree(h_para->d_a);
+	cudaFree(h_para->d_b);
+	cudaFree(h_para->d_c);
+
+	// release struc mem
+	cudaFreeHost(h_para);
+	cudaFree(d_para);
+	
+}
+
+void addWithCuda(ProcPara * h_para, ProcPara* d_para, unsigned int arraySize)
+{
+	cudaSetDevice(0);
+
+	cudaMemcpy(h_para->d_a, h_para->h_a, arraySize * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(h_para->d_b, h_para->h_b, arraySize * sizeof(int), cudaMemcpyHostToDevice);
+
+	// launch kernel on the GPU
+	addKernel << <1, arraySize >> > (d_para);
+
+	cudaMemcpy(h_para->h_c, h_para->d_c, arraySize * sizeof(int), cudaMemcpyDeviceToHost);
+
+	cudaDeviceSynchronize();
+}
+
+void testUseStructToStoreHostDeviveParams()
+{
+	const int arraySize = 5;
+	const int a[arraySize] = { 1, 2, 3, 4, 5 };
+	const int b[arraySize] = { 11, 22, 33, 44, 55 };
+	int c[arraySize] = { 0 };
+
+	//ProcPara* para = new ProcPara; // 结构体指针实体在cpu mem中，计算结果是错误的
+	ProcPara *h_para;
+	ProcPara *d_para;
+
+	initProcPara(&h_para, &d_para, arraySize);
+
+	memcpy(h_para->h_a, a, arraySize * sizeof(int));
+	memcpy(h_para->h_b, b, arraySize * sizeof(int));
+
+	addWithCuda(h_para, d_para, arraySize);
+
+	memcpy(c, h_para->h_c, arraySize * sizeof(int));
+
+	printf("{ 1, 2, 3, 4, 5 } + { 11, 22, 33, 44, 55 } = {%d,%d,%d,%d,%d}\n",
+		c[0], c[1], c[2], c[3], c[4]);
+
+	// free
+	deInitProcPara(h_para, d_para);
+
+}
+
 

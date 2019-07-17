@@ -18,7 +18,7 @@ public:
 	/*
 		stop the timer and print the duration
 	*/
-	void showDuration();
+	void stopAndShow();
 
 private:
 	clock_t t_begin;
