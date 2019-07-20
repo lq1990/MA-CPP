@@ -24,7 +24,7 @@
     <ClCompile Include="MyParams.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Client.cpp">
+    <ClCompile Include="Unified.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -59,6 +59,9 @@
     <ClInclude Include="CudaUtils.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Unified.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CudaScript.cpp">
@@ -86,6 +89,9 @@
       <Filter>源文件</Filter>
     </CudaCompile>
     <CudaCompile Include="Cuda4RNN.cu">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="Client.cpp">
       <Filter>源文件</Filter>
     </CudaCompile>
   </ItemGroup>

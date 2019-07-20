@@ -417,6 +417,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 			ys[t] = Why * hs[t] + by; 
 			// (#classes 3, 100)(100,1) + (3,1) = (3,1)
 
+			// ps[t] = softmax(ys[t])
 			mat sum_exp = arma::sum(arma::exp(ys[t]), 0);
 			ps[t] = arma::exp(ys[t]) / sum_exp(0, 0); // (3,1)
 
@@ -448,7 +449,7 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 	dWhy = arma::zeros<mat>(Why.n_rows, Why.n_cols);
 	dbh = arma::zeros<mat>(bh.n_rows, bh.n_cols);
 	dby = arma::zeros<mat>(by.n_rows, by.n_cols);
-	dhnext = arma::zeros<mat>(hs[0].n_rows, hs[0].n_cols);
+	dhnext = arma::zeros<mat>(hs[0].n_rows, hs[0].n_cols); // init dhnext = 0
 
 	mat dy, dh, dhraw;
 	for (int t = (int)inputs.n_rows - 1; t >= 0 ; t--)
@@ -462,9 +463,9 @@ map<string, mat> RNN::lossFun(mat inputs, double score, mat hprev, vector<double
 			dby += dy;
 
 			dh = Why.t() * dy + dhnext;
-			dhraw = (1 - hs[t] % hs[t]) % dh;
+			dhraw = (1 - hs[t] % hs[t]) % dh; // mul elemwise
 			dbh += dhraw;
-			dWxh += dhraw * xs[t].t();
+			dWxh += dhraw * xs[t].t(); // 惩罚项，只需要在loop中 加一次
 			dWhh += dhraw * hs[t-1].t();
 			dhnext = Whh.t() * dhraw;
 		}

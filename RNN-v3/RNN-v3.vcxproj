@@ -128,7 +128,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Client.cpp" />
+    <CudaCompile Include="Client.cpp" />
+    <ClCompile Include="Unified.cpp" />
     <CudaCompile Include="CudaScript.cpp" />
     <CudaCompile Include="gpu_fns.cu" />
     <CudaCompile Include="MyArray.cpp" />
@@ -150,6 +151,7 @@
     <ClInclude Include="gpu_fns.h" />
     <ClInclude Include="IOMatlab.h" />
     <ClInclude Include="MyClock.h" />
+    <ClInclude Include="Unified.h" />
     <CudaCompile Include="MyArray.h" />
     <ClInclude Include="MyParams.h" />
     <ClInclude Include="Script.h" />

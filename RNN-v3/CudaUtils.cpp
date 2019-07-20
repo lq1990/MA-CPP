@@ -23,6 +23,8 @@ CudaUtils::~CudaUtils()
 }
 
 
+
+
 CudaUtils * CudaUtils::mmul(device_vector<float> d_o, int om, int on)
 {
 	int M = this->M;
@@ -86,8 +88,7 @@ CudaUtils * CudaUtils::add(device_vector<float> d_o)
 
 	device_vector<float> res_vec;
 
-	res_vec = gpu_add(this->handle,
-		this->d_vec, d_o, M*N);
+	res_vec = gpu_add(this->d_vec, d_o, M*N);
 
 	// update 将指针游标移动到计算结果上，这样才能实现链式向后计算新的 
 	this->d_vec = res_vec;
@@ -100,6 +101,83 @@ CudaUtils * CudaUtils::add(CudaUtils * cu_d_o)
 	device_vector<float> tmp = cu_d_o->getResDevVec();
 	return this->add(tmp);
 }
+
+CudaUtils * CudaUtils::mul_elemwise(device_vector<float> d_o)
+{
+	int M = this->M;
+	int N = this->N;
+
+	device_vector<float> res_vec;
+	res_vec = gpu_mul_elemwise(this->d_vec, d_o, M*N);
+
+	// update this
+	this->d_vec = res_vec;
+
+	return this;
+}
+
+CudaUtils * CudaUtils::tanh()
+{
+	int M = this->M;
+	int N = this->N;
+
+	thrust::device_vector<float> d_y(M*N);
+
+	thrust::transform(this->d_vec.begin(), this->d_vec.end(),
+		d_y.begin(),
+		tanh_functor());
+
+	// update
+	this->d_vec = d_y;
+	return this;
+}
+
+CudaUtils * CudaUtils::scal(float alpha)
+{
+	int M = this->M;
+	int N = this->N;
+
+	device_vector<float> d_y(M*N);
+	device_vector<float> d_alpha(M*N, alpha);
+
+	thrust::transform(this->d_vec.begin(), this->d_vec.end(),
+		d_alpha.begin(),
+		d_y.begin(),
+		thrust::multiplies<float>());
+
+	// update 
+	this->d_vec = d_y;
+	return this;
+}
+
+CudaUtils * CudaUtils::getRow(int r)
+{
+	int M = this->M;
+	int N = this->N;
+
+	// rowLoc
+	device_vector<int> rowLoc(N); // matrix第r行元素的index
+	for (int i = 0; i < N; i++)
+	{
+		rowLoc[i] = i * M + r; 
+		// 此处使用了loop，但时间复杂度是常数级别，因为场景矩阵的列数N是常数。
+		// 因此运算效率不低。
+	}
+
+	device_vector<float> res =
+		gpu_get_row(this->d_vec, rowLoc, N);
+
+	// update this
+	this->d_vec = res;
+	this->M = N;
+	this->N = 1;
+	this->size = N * 1;
+
+	return this;
+}
+
+
+
 
 device_vector<float> CudaUtils::getResDevVec()
 {
@@ -116,28 +194,5 @@ int CudaUtils::getResN()
 	return this->N;
 }
 
-//device_vector<float> CudaUtils::mmul(
-//	device_vector<float> d_A, 
-//	device_vector<float> d_B, 
-//	int A_M, int A_N, int B_N)
-//{
-//
-//	return gpu_mmul(this->handle, d_A, d_B,
-//		A_M, A_N, B_N);
-//}
 
-
-void CudaUtils::warmup()
-{
-	float* h_a;
-	h_a = (float*)malloc(sizeof(float));
-	h_a[0] = 1.0f;
-
-	float* d_a;
-	cudaMalloc((void**)&d_a, sizeof(float));
-	cudaMemcpy(d_a, h_a, sizeof(float), cudaMemcpyHostToDevice);
-
-	cudaFree(d_a);
-	free(h_a);
-}
 

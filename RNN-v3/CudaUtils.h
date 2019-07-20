@@ -9,6 +9,14 @@
 	A.mmul(B).mmul(C) 链式效果
 	=> A*B*C
 
+	使用须知：
+	CudaUtils* cuA = new CudaUtils(handle, A, am, an); // 实例了一个包装对象 cuA，
+	cuA.mmul(B, bm, bn).add(v); // 随着链条的往后，cuA已经被update了。
+
+	// 若想重头计算另外一组计算的话，需要重新new一个实例。不能在cuA的基础上计算，因为cuA还保留着上个链条的结果。
+	// 为避免误用，简单起见，使用匿名实例，如下
+	thrust::device_vector<float> y = new CudaUtils(handle, M, 3, 2)->mv(v)->getResDevVec();
+
 */
 
 #include <iostream>
@@ -30,7 +38,8 @@ class CudaUtils
 {
 public:
 	CudaUtils();
-	CudaUtils(cublasHandle_t handle, device_vector<float> d_vec, int M, int N);
+	CudaUtils(cublasHandle_t handle, 
+		device_vector<float> d_vec, int M, int N);
 	~CudaUtils();
 
 	/*
@@ -47,27 +56,24 @@ public:
 
 	CudaUtils* add(CudaUtils* cu_d_o);
 
+	CudaUtils* mul_elemwise(device_vector<float> d_o);
+
+	CudaUtils* tanh();
+
+	CudaUtils* scal(float alpha);
+
+	/*
+		if d_vec stores data of a matrix,
+		getRow(r) returns the rth row,
+		return format is also the wrapped vector => CudaUtils*
+
+		r: 0-based indexing
+	*/
+	CudaUtils* getRow(int r);
 
 	device_vector<float> getResDevVec();
-
 	int getResM();
-
 	int getResN();
-
-	/*
-		matrix-matrix multiplication
-	*/
-	/*device_vector<float> mmul(
-		device_vector<float> d_A,
-		device_vector<float> d_B,
-		int A_M, int A_N, int B_N);*/
-
-
-	/*
-		warm up the GPU
-	*/
-	void warmup();
-
 
 private:
 	cublasHandle_t handle;

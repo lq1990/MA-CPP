@@ -10,25 +10,6 @@
 using namespace std;
 using namespace thrust;
 
-/*
-	For one Scenario.
-	Struct stores data about Scenarios from matlab.
-	<items>
-	float id;
-	float score;
-	MyArray* matDataZScore;
-	</item>
-*/
-typedef struct SceStruct
-{
-	float id;
-	float score;
-	MyArray* matDataZScore;
-	// normalized matData by using zscore-norm i.e. (data-mean)/std
-
-	//arma::mat matData;
-	//arma::mat matDataZScore;
-};
 
 /*
 	Input/Output Of Matlab Data
@@ -39,15 +20,19 @@ public:
 	IOMatlab();
 	~IOMatlab();
 
-	static thrust::device_vector<SceStruct> read(const char* fileName);
-
 	/*
-		arma::mat (M, N)
-		To 
-		array stored in column-major format with dimensions (M*N, 1).
+		fileName:: "listStructTrain", "listStructCV"
 
-		ld: leading dimension of original m
+		vector<arma::mat> 不能使用，用于存储所有场景数据。
+		替代方案：
+		4个device_vector<float>
+		此4个d_vec 在传进来之前都是size=0
 	*/
-	//static MyArray* mat2arr(arma::mat m);
+	static void read(const char* fileName, 
+		device_vector<float>& sces_id_score,
+		device_vector<float>& sces_data,
+		device_vector<int>& sces_data_mn,
+		device_vector<int>& sces_data_idx_begin);
+
 };
 

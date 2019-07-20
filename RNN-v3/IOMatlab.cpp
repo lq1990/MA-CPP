@@ -11,12 +11,14 @@ IOMatlab::~IOMatlab()
 {
 }
 
-/*
-	fileName:: listStructTrain, listStructCV
-*/
-thrust::device_vector<SceStruct> IOMatlab::read(const char * fileName)
+
+void IOMatlab::read(const char* fileName,
+	device_vector<float>& sces_id_score, // [id0,score0, id1,score1, id2,score2, ...]
+	device_vector<float>& sces_data,     // all data
+	device_vector<int>& sces_data_mn,  // [m0,n0, m1,n1, m2,n2, ...]
+	device_vector<int>& sces_data_idx_begin) // [idx0, idx1, idx2, ...]
 {
-	thrust::device_vector<SceStruct> vec;
+	//thrust::device_vector<float> vec;
 
 	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
 	const char* tail = ".mat";
@@ -28,84 +30,69 @@ thrust::device_vector<SceStruct> IOMatlab::read(const char * fileName)
 	MATFile* file = matOpen(path, "r");
 	mxArray* listStructTrain = matGetVariable(file, fileName);
 
-	int numElems = mxGetNumberOfElements(listStructTrain); // 27 scenarios
-	int numFields = mxGetNumberOfFields(listStructTrain); // 6 fields: {id, score, details, matData, matDataPcAll, matDataZScore}
+	int numSces = mxGetNumberOfElements(listStructTrain); // 22/7/7 scenarios
+	int numFields = mxGetNumberOfFields(listStructTrain); // 7 fields: {id, score, details, matData, matDataPcAll, matDataZScore, matDataZScore_t}
 	//cout << numElems << ", " << numFields << endl;
 
 	// traverse rows, i.e. scenarios
-	for (int i = 0; i < numElems; i++)
+	for (int i = 0; i < numSces; i++)
 	{
-		SceStruct ms;
+		// 第 i 个 sce
 
+		//SceStruct ms;
 		mxArray* item_id = mxGetField(listStructTrain, i, "id");
 		mxArray* item_score = mxGetField(listStructTrain, i, "score");
-		mxArray* item_matData = mxGetField(listStructTrain, i, "matData");
 		mxArray* item_matDataZScore = mxGetField(listStructTrain, i, "matDataZScore");
+		mxArray* item_matDataZScore_t = mxGetField(listStructTrain, i, "matDataZScore_t");
 
 		double* id = (double*)mxGetData(item_id);
 		double* score = (double*)mxGetData(item_score);
-		double* matData = (double*)mxGetData(item_matData);
-		int rows_matData = (int)mxGetM(item_matData); // n_rows of matData 
-		int cols_matData = (int)mxGetN(item_matData); // n_cols of matData
-		double* matDataZScore = (double*)mxGetData(item_matDataZScore);
+
+	  /*double* matDataZScore = (double*)mxGetData(item_matDataZScore);
 		int rows_matDataZScore = (int)mxGetM(item_matDataZScore);
-		int cols_matDataZScore = (int)mxGetN(item_matDataZScore);
+		int cols_matDataZScore = (int)mxGetN(item_matDataZScore);*/
+
+		double* matDataZScore_t = (double*)mxGetData(item_matDataZScore_t); // trans of matDataZScore
+		int rows_matDataZScore_t = (int)mxGetM(item_matDataZScore_t);
+		int cols_matDataZScore_t = (int)mxGetN(item_matDataZScore_t);
 
 		//mat matTmp = mat(rows_matDataZScore*cols_matDataZScore, 1);
+		//float *arr; // stores all the elems
+		//arr = (float*)malloc(rows_matDataZScore * cols_matDataZScore * sizeof(float));
 		
-		float *arr; // stores all the elems
-		arr = (float*)malloc(rows_matDataZScore * cols_matDataZScore * sizeof(float));
-		
-		for (int i = 0; i < rows_matDataZScore*cols_matDataZScore; i++) 
+		for (int i = 0; i < rows_matDataZScore_t*cols_matDataZScore_t; i++) 
 			// 把matData中数据一列列读取
 		{
 			//matTmp(i, 0) = matDataZScore[i];
-			arr[i] = matDataZScore[i];
+			//arr[i] = matDataZScore[i];
+			sces_data.push_back(matDataZScore_t[i]);
 		}
-		//matTmp.reshape(rows_matDataZScore, cols_matDataZScore);
-		MyArray *marr = new MyArray();
-		marr->size = rows_matDataZScore * cols_matDataZScore;
-		marr->n_rows_origin = rows_matDataZScore;
-		marr->arr = arr;
 
-		ms.id = id[0];
+		//matTmp.reshape(rows_matDataZScore, cols_matDataZScore);
+
+		/*ms.id = id[0];
 		ms.score = score[0];
-		ms.matDataZScore = marr;
+		ms.matDataZScore = marr;*/
 		//ms.matDataZScore = matTmp;
 
+		sces_id_score.push_back(id[0]);
+		sces_id_score.push_back(score[0]);
+		sces_data_mn.push_back(rows_matDataZScore_t);
+		sces_data_mn.push_back(cols_matDataZScore_t);
+
 		// save ms in vector
-		vec.push_back(ms);
+		//vec.push_back(ms);
 	}
 
-	return vec;
+	// use sces_data_mn to create sces_data_idx_begin
+	sces_data_idx_begin.push_back(0);
+	int idx_cumsum = 0;
+	for (int i = 0; i < numSces-1; i++)
+	{
+		idx_cumsum += sces_data_mn[i * 2] * sces_data_mn[i * 2 + 1];
+		sces_data_idx_begin.push_back(idx_cumsum);
+	}
+
+	return;
 }
-
-
-//MyArray* IOMatlab::mat2arr(arma::mat m)
-//{
-//	int M = m.n_rows;
-//	int N = m.n_cols;
-//	m.reshape(M*N, 1); // col-major in Armadillo
-//
-//	// array
-//	float *arr;
-//	arr = (float*)malloc(M*N * sizeof(float));
-//	for (int i = 0; i < M*N; i++)
-//	{
-//		arr[i] = m(i, 0);
-//	}
-//
-//	// return a struct
-//	MyArray *marr = new MyArray(); // 动态分配内存
-//	marr->size = M * N;
-//	marr->n_rows_origin = M;
-//	marr->arr = arr;
-//	
-//	/*marr.arr = arr;
-//	marr.size = M * N;
-//	marr.n_rows_origin = M;*/
-//
-//	return marr;
-//}
-
 
