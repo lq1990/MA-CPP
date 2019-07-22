@@ -9,6 +9,7 @@
 #include "cublas_v2.h"
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/fill.h>
 
 #include "Unified.h"
 
@@ -17,9 +18,6 @@
 
 using namespace std;
 using namespace thrust;
-
-
-
 
 /*
 	注意：cuda编译的文件中，不能有Armadillo
@@ -36,7 +34,6 @@ using namespace thrust;
 */
 typedef struct d_params_struct
 {
-	float loss;
 	device_vector<float> dWxh;
 	device_vector<float> dWhh;
 	device_vector<float> dWhy;
@@ -44,43 +41,73 @@ typedef struct d_params_struct
 	device_vector<float> dby;
 };
 
-typedef struct sces_struct
+typedef struct params_struct
 {
-	device_vector<float> sces_id_score;
-	device_vector<float> sces_data;
-	device_vector<float> sces_data_mn;
-	device_vector<float> sces_data_idx_begin();
+	device_vector<float> Wxh;
+	device_vector<float> Whh;
+	device_vector<float> Why;
+	device_vector<float> bh;
+	device_vector<float> by;
 };
 
+/**
+	d_vec 在动态分配内存时，出现错误，因此使用原生float*
 
-class Cuda4RNN
+*/
+typedef struct sces_struct
 {
-public:
-	Cuda4RNN();
-	~Cuda4RNN();
+	float* sces_id_score;
+	float* sces_data;
+	float* sces_data_mn;
+	float* sces_data_idx_begin;
+};
 
-	void initParams();
+typedef struct cache_struct
+{
+	device_vector<float> tmp_d_vec;
+	device_vector<float> W_tmp1;
+	device_vector<float> W_tmp2;
+	device_vector<float> W_tmp3;
+};
+
+//class Cuda4RNN
+//{
+//public:
+//	Cuda4RNN();
+//	~Cuda4RNN();
+//
+//	void initParams();
 
 	/*
 		sces_data: data of all scenarios
 	*/
-	void trainMultiThread(device_vector<float> sces_id_score,
-		device_vector<float> sces_data,
-		device_vector<int> sces_data_mn,
-		device_vector<int> sces_data_idx_begin,
-		device_vector<float>& lossAllVec,
-		device_vector<float> Wxh,
-		device_vector<float> Whh,
-		device_vector<float> Why,
-		device_vector<float> bh,
-		device_vector<float> by,
-		float alpha,
-		int total_epoches,
-		int n_features,
-		int n_hidden,
-		int n_output_classes,
-		float score_min,
-		float score_max);
+void trainMultiThread(
+	/*device_vector<float>& sces_id_score,
+	device_vector<float>& sces_data,
+	device_vector<int>& sces_data_mn,
+	device_vector<int>& sces_data_idx_begin,*/
+	sces_struct* sces_s,
+
+	device_vector<float>& lossAllVec,
+	/*device_vector<float>& Wxh,
+	device_vector<float>& Whh,
+	device_vector<float>& Why,
+	device_vector<float>& bh,
+	device_vector<float>& by,*/
+	params_struct* p_s,
+	float alpha,
+	int total_epoches,
+	int n_features,
+	int n_hidden,
+	int n_output_classes,
+	float score_min,
+	float score_max,
+	/*device_vector<float>& tmp_d_vec,
+	device_vector<float>& d_cache1,
+	device_vector<float>& d_cache2,
+	device_vector<float>& d_cache3*/
+	cache_struct* cache_s
+);
 
 	/**
 		once Forward and
@@ -90,29 +117,38 @@ public:
 
 		inputs: data of one scenario
 	*/
-	void lossFun(cublasHandle_t handle,
-		device_vector<float> inputs, int M, int N,
-		float score, 
-		device_vector<float> hprev, 
+	void lossFun(
+		cublasHandle_t handle,
+		device_vector<float>& inputs, int M, int N,
+		float score,
+		device_vector<float>& hprev,
 		device_vector<float>& true_false,
-		device_vector<int>& log_target, 
+		device_vector<int>& log_target,
 		device_vector<int>& log_prediction,
-		device_vector<float> Wxh,
-		device_vector<float> Whh,
-		device_vector<float> Why,
-		device_vector<float> bh,
-		device_vector<float> by,
+		/*device_vector<float>& Wxh,
+		device_vector<float>& Whh,
+		device_vector<float>& Why,
+		device_vector<float>& bh,
+		device_vector<float>& by,*/
+		params_struct* p_s,
 		float& loss,
-		device_vector<float>& dWxh,
+		/*device_vector<float>& dWxh,
 		device_vector<float>& dWhh,
 		device_vector<float>& dWhy,
 		device_vector<float>& dbh,
-		device_vector<float>& dby,
+		device_vector<float>& dby,*/
+		d_params_struct* d_p_s,
 		int n_features,
 		int n_hidden,
 		int n_output_classes,
 		float score_min,
-		float score_max);
+		float score_max,
+		/*device_vector<float>& tmp_d_vec,
+		device_vector<float>& W_tmp1,
+		device_vector<float>& W_tmp2,
+		device_vector<float>& W_tmp3*/
+		cache_struct* cache_s
+	);
 
 	/*
 		idx1_targets: index 1 in targets
@@ -131,7 +167,7 @@ public:
 	void test_gpu_fns_CudaUtils();
 
 
-public:
+//public:
 	// the params shoule be static because of using CPU Parallel Computing
 	//static float alpha;
 	//static int total_epoches;
@@ -163,5 +199,5 @@ public:
 	device_vector<float> bh;
 	device_vector<float> by;*/
 
-};
+//};
 

@@ -132,6 +132,7 @@
     <ClCompile Include="Unified.cpp" />
     <CudaCompile Include="CudaScript.cpp" />
     <CudaCompile Include="gpu_fns.cu" />
+    <CudaCompile Include="gpu_raw_fns.cu" />
     <CudaCompile Include="MyArray.cpp" />
     <CudaCompile Include="cublas_thrust.cpp" />
     <CudaCompile Include="CudaUtils.cpp" />
@@ -149,6 +150,7 @@
     <ClInclude Include="CudaScript.h" />
     <ClInclude Include="CudaUtils.h" />
     <ClInclude Include="gpu_fns.h" />
+    <ClInclude Include="gpu_raw_fns.h" />
     <ClInclude Include="IOMatlab.h" />
     <ClInclude Include="MyClock.h" />
     <ClInclude Include="Unified.h" />

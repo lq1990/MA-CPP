@@ -1,13 +1,12 @@
 ﻿#include "gpu_fns.h"
 
 
-device_vector<float> gpu_mmul(cublasHandle_t handle,
-	device_vector<float> d_A, 
-	device_vector<float> d_B, 
-	int A_M, int A_N, int B_N)
+void gpu_mmul(cublasHandle_t handle,
+	device_vector<float>& d_A, 
+	device_vector<float>& d_B, 
+	int A_M, int A_N, int B_N,
+	device_vector<float>& dest)
 {
-	device_vector<float> d_C(A_M * B_N);
-
 	float alpha = 1.0f;
 	float beta = 0.0f;
 	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
@@ -16,23 +15,20 @@ device_vector<float> gpu_mmul(cublasHandle_t handle,
 		raw_pointer_cast(&d_A[0]), A_M,
 		raw_pointer_cast(&d_B[0]), A_N,
 		&beta,
-		raw_pointer_cast(&d_C[0]), A_M);
-
-	return d_C;
+		raw_pointer_cast(&dest[0]), A_M);
 }
 
-device_vector<float> gpu_mv(cublasHandle_t handle, 
-	device_vector<float> d_A,
-	device_vector<float> d_x,
-	int am, int an, bool isMT)
+void gpu_mv(cublasHandle_t handle, 
+	device_vector<float>& d_A,
+	device_vector<float>& d_x,
+	int am, int an, device_vector<float>& dest, 
+	bool isMT)
 {
 	float alpha = 1.0f;
 	float beta = 0.0f;
 	if (isMT)
 	{
 		// y = A' * x
-		 device_vector<float> d_y(an * 1);
-
 		cublasSgemv(handle, // y = alpha * A*x + beta*y
 			CUBLAS_OP_T,
 			am, an,
@@ -40,14 +36,11 @@ device_vector<float> gpu_mv(cublasHandle_t handle,
 			raw_pointer_cast(&d_A[0]), am,
 			raw_pointer_cast(&d_x[0]), 1,
 			&beta,
-			raw_pointer_cast(&d_y[0]), 1);
-
-		return d_y;
+			raw_pointer_cast(&dest[0]), 1);
 	}
 	else
 	{
 		// y = A * x
-		device_vector<float> d_y(am * 1);
 		cublasSgemv(handle, // y = alpha * A*x + beta*y
 			CUBLAS_OP_N,
 			am, an,
@@ -55,28 +48,25 @@ device_vector<float> gpu_mv(cublasHandle_t handle,
 			raw_pointer_cast(&d_A[0]), am,
 			raw_pointer_cast(&d_x[0]), 1,
 			&beta,
-			raw_pointer_cast(&d_y[0]), 1);
+			raw_pointer_cast(&dest[0]), 1);
 
-		cudaDeviceSynchronize(); // wait for gpu to finish
-		return d_y;
 	}
-	
+	//cudaDeviceSynchronize(); // wait for gpu to finish
 }
 
 device_vector<float> gpu_add(device_vector<float> d_x,
 	device_vector<float> d_y,
 	int size)
 {
-	device_vector<float> d_z(size);
-
+	device_vector<float> res_vec(size);
 	thrust::transform(d_x.begin(), d_x.end(), d_y.begin(),
-		d_z.begin(), thrust::plus<float>());
+		res_vec.begin(), thrust::plus<float>());
 
-	return d_z;
+	return res_vec;
 }
 
-device_vector<float> gpu_mul_elemwise(device_vector<float> d_x,
-	device_vector<float> d_y,
+device_vector<float> gpu_mul_elemwise(device_vector<float>& d_x,
+	device_vector<float>& d_y,
 	int size)
 {
 	// z = x .* y
@@ -85,7 +75,7 @@ device_vector<float> gpu_mul_elemwise(device_vector<float> d_x,
 	thrust::transform(d_x.begin(), d_x.end(), d_y.begin(),
 		d_z.begin(), thrust::multiplies<float>());
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 	return d_z;
 }
 
@@ -101,7 +91,7 @@ device_vector<float> gpu_tanh(device_vector<float> d_x, int size)
 	return d_y;
 }
 
-device_vector<float> gpu_scal(device_vector<float> d_x, int size, float alpha)
+device_vector<float> gpu_scal(device_vector<float>& d_x, int size, float alpha)
 {
 	device_vector<float> d_y(size);
 	device_vector<float> d_alpha(size, alpha);
@@ -114,24 +104,18 @@ device_vector<float> gpu_scal(device_vector<float> d_x, int size, float alpha)
 	return d_y;
 }
 
-device_vector<float> gpu_get_col(device_vector<float> d_A, int M, int N, int col)
+void gpu_get_col(device_vector<float>& d_A, int M, int N, int col, device_vector<float>& dest)
 {
-
-	device_vector<float> res_vec(M);
 	int begin = col * M; // [begin, end)
 	int end = (col+1) * M;
-	thrust::copy(d_A.begin() + begin, d_A.begin() + end, res_vec.begin());
-
-	return res_vec;
+	thrust::copy(d_A.begin() + begin, d_A.begin() + end, dest.begin());
 }
 
 void gpu_set_col(device_vector<float>& d_A, int M, int N, 
 	int col, device_vector<float> values)
 {
-
 	int setBeginIdx = col * M;
-	thrust::copy(values.begin(), values.end(), d_A.begin() + setBeginIdx);
-
+	thrust::copy(values.begin(), values.begin() + M , d_A.begin() + setBeginIdx);
 }
 
 
@@ -214,7 +198,7 @@ device_vector<float> gpu_generate_rand(int n_rows, int n_cols,
 	return d_A;
 }
 
-device_vector<float> gpu_softmax(device_vector<float> d_x, int size)
+device_vector<float> gpu_softmax(device_vector<float>& d_x, int size)
 {
 	// declare
 	device_vector<float> exp_x(size); // saves exp(x)
@@ -243,7 +227,7 @@ device_vector<float> gpu_softmax(device_vector<float> d_x, int size)
 	return exp_div_sum;
 }
 
-int gpu_max_index(device_vector<float> d_x)
+int gpu_max_index(device_vector<float>& d_x)
 {
 	device_vector<float>::iterator iter =
 		thrust::max_element(d_x.begin(), d_x.end());
@@ -252,7 +236,7 @@ int gpu_max_index(device_vector<float> d_x)
 	return pos;
 }
 
-float gpu_max_value(device_vector<float> d_x)
+float gpu_max_value(device_vector<float>& d_x)
 {
 	device_vector<float>::iterator iter =
 		thrust::max_element(d_x.begin(), d_x.end());

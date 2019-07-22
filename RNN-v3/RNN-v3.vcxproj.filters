@@ -62,6 +62,9 @@
     <ClInclude Include="Unified.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="gpu_raw_fns.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CudaScript.cpp">
@@ -89,6 +92,9 @@
       <Filter>源文件</Filter>
     </CudaCompile>
     <CudaCompile Include="Cuda4RNN.cu">
+      <Filter>源文件</Filter>
+    </CudaCompile>
+    <CudaCompile Include="gpu_raw_fns.cu">
       <Filter>源文件</Filter>
     </CudaCompile>
     <CudaCompile Include="Client.cpp">

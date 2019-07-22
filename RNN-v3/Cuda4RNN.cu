@@ -20,71 +20,80 @@
 
 
 
-Cuda4RNN::Cuda4RNN()
-{
-}
+//Cuda4RNN::Cuda4RNN()
+//{
+//}
+//
+//
+//Cuda4RNN::~Cuda4RNN()
+//{
+//}
+//
+//void Cuda4RNN::initParams()
+//{
+//	//cout << "init alpha epoch n score" << endl;
+//	/*alpha[0] = 0.1f;
+//	total_epoches[0] = 501;
+//	n_features[0] = 17;
+//	n_hidden[0] = 50;
+//	n_output_classes[0] = 10;
+//	score_min[0] = 6.0f;
+//	score_max[0] = 8.9f;*/
+//
+//	/*alpha = 0.1f;
+//	total_epoches = 501;
+//	n_features = 17;
+//	n_hidden = 50;
+//	n_output_classes = 10;
+//	score_min = 6.0f;
+//	score_max = 8.9f;*/
+//
+//	//cout << "init W b" << endl;
+//	//this->Wxh = device_vector<float>(n_hidden * n_features);
+//	//this->Whh = device_vector<float>(n_hidden * n_hidden);
+//	//this->Why = device_vector<float>(n_output_classes * n_hidden);
+//	//this->bh = device_vector<float>(n_hidden);
+//	//this->by = device_vector<float>(n_output_classes);
+//
+//	///*Wxh = gpu_generate_rand(n_hidden, n_features, -0.01, 0.01f, 1);
+//	//Whh = gpu_generate_rand(n_hidden, n_hidden, -0.01, 0.01f, 11);
+//	//Why = gpu_generate_rand(n_output_classes, n_hidden, -0.01, 0.01f, 111);
+//	//bh = gpu_generate_rand(n_hidden, 1, -0.01, 0.01f, 22);
+//	//by = gpu_generate_rand(n_output_classes, 1, -0.01, 0.01f, 222);*/
+//	//gpu_fill_rand(Wxh, n_hidden, n_features, -0.01f, 0.01f, 1);
+//	//gpu_fill_rand(Whh, n_hidden, n_hidden, -0.01f, 0.01f, 11);
+//	//gpu_fill_rand(Why, n_output_classes, n_hidden, -0.01f, 0.01f, 111);
+//	//gpu_fill_rand(bh, n_hidden, 1, -0.01f, 0.01f, 22);
+//	//gpu_fill_rand(by, n_output_classes, 1, -0.01f, 0.01f, 222);
+//}
 
 
-Cuda4RNN::~Cuda4RNN()
-{
-}
-
-void Cuda4RNN::initParams()
-{
-	//cout << "init alpha epoch n score" << endl;
-	/*alpha[0] = 0.1f;
-	total_epoches[0] = 501;
-	n_features[0] = 17;
-	n_hidden[0] = 50;
-	n_output_classes[0] = 10;
-	score_min[0] = 6.0f;
-	score_max[0] = 8.9f;*/
-
-	/*alpha = 0.1f;
-	total_epoches = 501;
-	n_features = 17;
-	n_hidden = 50;
-	n_output_classes = 10;
-	score_min = 6.0f;
-	score_max = 8.9f;*/
-
-	//cout << "init W b" << endl;
-	//this->Wxh = device_vector<float>(n_hidden * n_features);
-	//this->Whh = device_vector<float>(n_hidden * n_hidden);
-	//this->Why = device_vector<float>(n_output_classes * n_hidden);
-	//this->bh = device_vector<float>(n_hidden);
-	//this->by = device_vector<float>(n_output_classes);
-
-	///*Wxh = gpu_generate_rand(n_hidden, n_features, -0.01, 0.01f, 1);
-	//Whh = gpu_generate_rand(n_hidden, n_hidden, -0.01, 0.01f, 11);
-	//Why = gpu_generate_rand(n_output_classes, n_hidden, -0.01, 0.01f, 111);
-	//bh = gpu_generate_rand(n_hidden, 1, -0.01, 0.01f, 22);
-	//by = gpu_generate_rand(n_output_classes, 1, -0.01, 0.01f, 222);*/
-	//gpu_fill_rand(Wxh, n_hidden, n_features, -0.01f, 0.01f, 1);
-	//gpu_fill_rand(Whh, n_hidden, n_hidden, -0.01f, 0.01f, 11);
-	//gpu_fill_rand(Why, n_output_classes, n_hidden, -0.01f, 0.01f, 111);
-	//gpu_fill_rand(bh, n_hidden, 1, -0.01f, 0.01f, 22);
-	//gpu_fill_rand(by, n_output_classes, 1, -0.01f, 0.01f, 222);
-}
-
-
-void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
-	device_vector<float> sces_data,
-	device_vector<int> sces_data_mn,
-	device_vector<int> sces_data_idx_begin,
+void trainMultiThread(
+	/*device_vector<float>& sces_id_score,
+	device_vector<float>& sces_data,
+	device_vector<int>& sces_data_mn,
+	device_vector<int>& sces_data_idx_begin,*/
+	sces_struct* sces_s,
 	device_vector<float>& lossAllVec,
-	device_vector<float> Wxh,
-	device_vector<float> Whh,
-	device_vector<float> Why,
-	device_vector<float> bh,
-	device_vector<float> by,
+	/*device_vector<float>& Wxh,
+	device_vector<float>& Whh,
+	device_vector<float>& Why,
+	device_vector<float>& bh,
+	device_vector<float>& by,*/
+	params_struct* p_s,
 	float alpha,
 	int total_epoches,
 	int n_features,
 	int n_hidden,
 	int n_output_classes,
 	float score_min,
-	float score_max)
+	float score_max,
+	/*device_vector<float>& tmp_d_vec,
+	device_vector<float>& d_cache1,
+	device_vector<float>& d_cache2,
+	device_vector<float>& d_cache3*/
+	cache_struct* cache_s
+)
 {
 	cout << "train begins, \ntotal_epoches: " << total_epoches << endl;
 	cout << "alpha: " << alpha << endl;
@@ -94,10 +103,13 @@ void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
 	cout << n_output_classes << endl;
 	cout << score_min << endl;
 	cout << score_max << endl;
-	cout << "Wxh size: " << Wxh.size() << endl;
+	cout << "Wxh size: " << p_s->Wxh.size() << endl;
 
 	cublasHandle_t handle;
 	cublasCreate(&handle);
+
+	// init 一个tmp d_vec，用于存储get col的结果
+	//device_vector<float> tmp_d_vec(n_hidden); // size = max(n_features, n_hidden, n_output_classes)
 
 	// 先用 标准SGD优化，使用1个cpu线程
 	//device_vector<float> lossAllVec; // log all loss
@@ -108,31 +120,53 @@ void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
 	device_vector<int> log_target;
 	device_vector<int> log_prediction;
 
-	device_vector<float> dWxhSum, dWhhSum, dWhySum, dbhSum, dbySum;
-
 	float loss = 0.f;
 	// 先取出一个 场景数据 训练 RNN
-	float id0 = sces_id_score[0];
-	float score0 = sces_id_score[1];
-	int sce0_M = sces_data_mn[0];
-	int sce0_N = sces_data_mn[1];
-	device_vector<float> sce0_data(sce0_M* sce0_N);
-	thrust::copy(sces_data.begin(), 
-		sces_data.begin() + sces_data_idx_begin[1], 
-		sce0_data.begin());
+	float id0 = sces_s->sces_id_score[0];
+	float score0 = sces_s->sces_id_score[1];
+	int sce0_M = sces_s->sces_data_mn[0];
+	int sce0_N = sces_s->sces_data_mn[1];
+
+	//device_vector<float> sce0_data(sce0_M* sce0_N);
+	device_vector<float> sce0_data(sces_s->sces_data, 
+		sces_s->sces_data + sce0_M*sce0_N);
+
+	//thrust::copy(sces_d.begin(),
+	//	sces_d.end(),
+	//	sce0_data.begin());
+
+	/*device_vector<float> dWxh(n_hidden * n_features), 
+		dWhh(n_hidden * n_hidden), 
+		dWhy(n_output_classes * n_hidden), 
+		dbh(n_hidden), 
+		dby(n_output_classes),*/ 
+	device_vector<float> hprev(n_hidden);
+	d_params_struct* d_p_s;
+	cudaMalloc((void**)&d_p_s, sizeof(d_params_struct));
+	d_p_s->dWxh = device_vector<float>(n_hidden*n_features);
+	d_p_s->dWhh = device_vector<float>(n_hidden*n_hidden);
+	d_p_s->dWhy = device_vector<float>(n_hidden*n_output_classes);
+	d_p_s->dbh = device_vector<float>(n_hidden);
+	d_p_s->dby = device_vector<float>(n_output_classes);
 
 	for (int i = 0; i < total_epoches; i++)
 	{
 		true_false.clear();
 		loss_one_epoch.clear();
 
-		device_vector<float> dWxh(n_hidden * n_features, 0.f);
-		device_vector<float> dWhh(n_hidden * n_hidden, 0.f);
-		device_vector<float> dWhy(n_output_classes * n_hidden, 0.f);
-		device_vector<float> dbh(n_hidden, 0.f);
-		device_vector<float> dby(n_output_classes, 0.f);
+		/*dWxh = device_vector<float>(n_hidden * n_features, 0.f);
+		dWhh = device_vector<float>(n_hidden * n_hidden, 0.f);
+		dWhy = device_vector<float>(n_output_classes * n_hidden, 0.f);
+		dbh = device_vector<float>(n_hidden, 0.f);
+		dby = device_vector<float>(n_output_classes, 0.f);*/
+		thrust::fill(d_p_s->dWxh.begin(), d_p_s->dWxh.end(), 0.f);
+		thrust::fill(d_p_s->dWhh.begin(), d_p_s->dWhh.end(), 0.f);
+		thrust::fill(d_p_s->dWhy.begin(), d_p_s->dWhy.end(), 0.f);
+		thrust::fill(d_p_s->dbh.begin(),  d_p_s->dbh.end(), 0.f);
+		thrust::fill(d_p_s->dby.begin(),  d_p_s->dby.end(), 0.f);
 
-		device_vector<float> hprev(n_hidden, 0.f); // init hprev
+		//hprev = device_vector<float>(n_hidden, 0.f); // init hprev
+		thrust::fill(hprev.begin(), hprev.end(), 0.f);
 
 		lossFun(handle,
 			sce0_data, sce0_M, sce0_N,
@@ -141,22 +175,15 @@ void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
 			true_false,
 			log_target,
 			log_prediction,
-			Wxh,
-			Whh,
-			Why,
-			bh,
-			by,
+			p_s,
 			loss,
-			dWxh,
-			dWhh,
-			dWhy,
-			dbh,
-			dby,
+			d_p_s,
 			n_features,
 			n_hidden,
 			n_output_classes,
 			score_min,
-			score_max);
+			score_max,
+			cache_s);
 
 		lossAllVec.push_back(loss);
 		loss_one_epoch.push_back(loss);
@@ -167,18 +194,17 @@ void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
 		}
 
 		// sgd, W = W - alpha * dW
-		sgd(Wxh, dWxh, n_hidden *n_features, alpha);
-		sgd(Whh, dWhh, n_hidden *n_hidden, alpha);
-		sgd(Why, dWhy, n_hidden *n_output_classes, alpha);
-		sgd(bh, dbh, n_hidden, alpha);
-		sgd(by, dby, n_output_classes, alpha);
+		sgd(p_s->Wxh, d_p_s->dWxh, n_hidden *n_features, alpha);
+		sgd(p_s->Whh, d_p_s->dWhh, n_hidden *n_hidden, alpha);
+		sgd(p_s->Why, d_p_s->dWhy, n_hidden *n_output_classes, alpha);
+		sgd(p_s->bh,  d_p_s->dbh, n_hidden, alpha);
+		sgd(p_s->by,  d_p_s->dby, n_output_classes, alpha);
 
 	}
 
-
 	// lossVec mean, accu
 
-
+	cudaFree(d_p_s);
 	cublasDestroy(handle);
 }
 
@@ -192,29 +218,38 @@ void Cuda4RNN::trainMultiThread(device_vector<float> sces_id_score,
 
 	注意：参数中有struct，当调用这个fn时，应先 cudaMallocManaged struct
 */
-void Cuda4RNN::lossFun(cublasHandle_t handle, 
-	device_vector<float> inputs, int M, int N,
+void lossFun(
+	cublasHandle_t handle,
+	device_vector<float>& inputs, int M, int N,
 	float score,
-	device_vector<float> hprev,
+	device_vector<float>& hprev,
 	device_vector<float>& true_false,
 	device_vector<int>& log_target,
 	device_vector<int>& log_prediction,
-	device_vector<float> Wxh,
-	device_vector<float> Whh,
-	device_vector<float> Why,
-	device_vector<float> bh,
-	device_vector<float> by,
+	/*device_vector<float>& Wxh,
+	device_vector<float>& Whh,
+	device_vector<float>& Why,
+	device_vector<float>& bh,
+	device_vector<float>& by,*/
+	params_struct* p_s,
 	float& loss,
-	device_vector<float>& dWxh,
+	/*device_vector<float>& dWxh,
 	device_vector<float>& dWhh,
 	device_vector<float>& dWhy,
 	device_vector<float>& dbh,
-	device_vector<float>& dby,
+	device_vector<float>& dby,*/
+	d_params_struct* d_p_s,
 	int n_features,
 	int n_hidden,
 	int n_output_classes,
 	float score_min,
-	float score_max)
+	float score_max,
+	/*device_vector<float>& tmp_d_vec,
+	device_vector<float>& W_tmp1,
+	device_vector<float>& W_tmp2,
+	device_vector<float>& W_tmp3*/
+	cache_struct* cache_s
+)
 {
 
 	//float alpha  = this->alpha[0]; // constant mem on GPU
@@ -240,73 +275,62 @@ void Cuda4RNN::lossFun(cublasHandle_t handle,
 	
 	// hs[-1] = hprev;
 	gpu_set_col(hs, n_hidden, N + 1, 0, hprev); // vec没有-1，所以用0位置
-	loss = 0.000f;
 
+	//device_vector<float> W_tmp1(n_hidden*n_hidden); // 需要验证下，大小设置是否有问题
+	//device_vector<float> W_tmp2(n_hidden*n_hidden);
 	// -------------- Forward Pass ---------------------
 
 	// N 是time步数
 	for (int t = 0; t < N; t++)
 	{
-		// xs[t] = inputs.row(t).t();
-		device_vector<float> colValues = gpu_get_col(inputs, M, N, t); // getCol ==> inputs.row()
-		gpu_set_col(xs, M, N, t, colValues);
+		// ---------- xs[t] = inputs.row(t).t();
+		gpu_get_col(inputs, M, N, t, cache_s->tmp_d_vec); // inputs.row(t)
+		//device_vector<float> colValues = gpu_get_col(inputs, M, N, t); // getCol ==> inputs.row()
+		gpu_set_col(xs, M, N, t, cache_s->tmp_d_vec);
 
-		// hs[t] = arma::tanh(Wxh * xs[t] + Whh*hs[t-1] + bh);
-		/*auto Wxh_xst = gpu_mv(handle, Wxh, 
-			gpu_get_col(xs, M, N, t), 
-			n_hidden, n_features);*/
-		/*auto Whh_hst_1 = gpu_mv(handle, Whh,
-			gpu_get_col(hs, n_hidden, (N + 1), t + 1 - 1),
-			n_hidden, n_hidden);*/
-		//auto W_W = gpu_add(gpu_mv(handle, Wxh, // Wxh_xst
-		//					gpu_get_col(xs, M, N, t),
-		//					n_hidden, n_features), 
-		//				gpu_mv(handle, Whh, // Whh_hst_1
-		//					gpu_get_col(hs, n_hidden, (N + 1), t + 1 - 1),
-		//					n_hidden, n_hidden),
-		//				n_hidden);
-		//auto W_W_bh = gpu_add(gpu_add(gpu_mv(handle, Wxh, // Wxh_xst
-		//				gpu_get_col(xs, M, N, t),
-		//					n_hidden, n_features),
-		//				gpu_mv(handle, Whh, // Whh_hst_1
-		//				gpu_get_col(hs, n_hidden, (N + 1), t + 1 - 1),
-		//				n_hidden, n_hidden),
-		//			n_hidden),
-		//		bh, n_hidden);
-		//auto tanh_W_W_bh = gpu_tanh(gpu_add(gpu_add(gpu_mv(handle, Wxh, // Wxh_xst
-		//		gpu_get_col(xs, M, N, t),
-		//		n_hidden, n_features),
-		//		gpu_mv(handle, Whh, // Whh_hst_1
-		//			gpu_get_col(hs, n_hidden, (N + 1), t + 1 - 1),
-		//			n_hidden, n_hidden),
-		//		n_hidden),
-		//		bh, n_hidden), // bh
-		//		n_hidden);
+		// --------- hs[t] = arma::tanh(Wxh * xs[t] + Whh*hs[t-1] + bh);
+		gpu_get_col(xs, M, N, t, cache_s->tmp_d_vec); // xs[t] => tmp_d_vec
+		//auto Wxh_xst = gpu_mv(handle, Wxh, tmp_d_vec, n_hidden, n_features);
+		gpu_mv(handle, p_s->Wxh, cache_s->tmp_d_vec, n_hidden, n_features, cache_s->W_tmp1); // tmp1 => Wxh_xst
+		gpu_get_col(hs, n_hidden, N + 1, t + 1 - 1, cache_s->tmp_d_vec); // hs[t-1] => tmp_d_vec
+		//auto Whh_hs_t_1 = gpu_mv(handle, Whh, tmp_d_vec, n_hidden, n_hidden);
+		gpu_mv(handle, p_s->Whh, cache_s->tmp_d_vec, n_hidden, n_hidden, cache_s->W_tmp2); // tmp2 => Whh_hs_t_1
+		//auto W_W = gpu_add(Wxh_xst, Whh_hs_t_1, n_hidden);
+		//auto W_W_bh = gpu_add(W_W, bh, n_hidden);
+		//auto tanh_W_W_bh = gpu_tanh(W_W_bh, n_hidden);
+		auto W_W = gpu_add(
+			cache_s->W_tmp1, // Wxh_xst
+			cache_s->W_tmp2, // Whh_hs_t_1
+			n_hidden);
+		auto W_W_bh = gpu_add(
+			W_W, // W_W
+			p_s->bh, n_hidden); // W_W_bh => tmp1
 		gpu_set_col(hs, n_hidden, N + 1, t + 1, 
-			gpu_tanh(gpu_add(gpu_add(gpu_mv(handle, Wxh, // Wxh_xst
-				gpu_get_col(xs, M, N, t),
-				n_hidden, n_features),
-				gpu_mv(handle, Whh, // Whh_hst_1
-					gpu_get_col(hs, n_hidden, (N + 1), t + 1 - 1),
-					n_hidden, n_hidden),
-				n_hidden),
-				bh, n_hidden), // bh
-				n_hidden));
-
+			gpu_tanh(
+				W_W_bh, // W_W_bh
+				n_hidden)); // tanh_W_W_bh
 
 		if (t == N-1) // 当t到达最后一步
 		{
-			// ys[t] = Why * hs[t] + by; 
-			auto Why_hst = 
-				gpu_mv(handle, Why, gpu_get_col(hs, n_hidden, N + 1, t + 1),
-					n_output_classes, n_hidden);
-			auto W_h_by = gpu_add(Why_hst, by, n_output_classes);
-			gpu_set_col(ys, n_output_classes, N, t, W_h_by);
+			// ys[t] = Why * hs[t] + by;
+			gpu_get_col(hs, n_hidden, N + 1, t + 1, cache_s->tmp_d_vec); // hs[t] => tmp
+			/*auto Why_hst = 
+				gpu_mv(handle, Why, tmp_d_vec,
+					n_output_classes, n_hidden);*/
+			//auto W_h_by = gpu_add(Why_hst, by, n_output_classes);
+			gpu_mv(handle, p_s->Why, cache_s->tmp_d_vec, n_output_classes, n_hidden,
+				cache_s->W_tmp1); // Why_hst => tmp1
+			auto W_h_by = gpu_add(
+				cache_s->W_tmp1, // Why_hst
+				p_s->by, n_output_classes); // W_h_by => tmp1
+			gpu_set_col(ys, n_output_classes, N, t, 
+				W_h_by); // W_h_by
 
 			// ps[t] = softmax(ys[t])
-			auto soft = gpu_softmax(gpu_get_col(ys, n_output_classes, N, t), 
-				n_output_classes);
-			gpu_set_col(ps, n_output_classes, N, t, soft);
+			gpu_get_col(ys, n_output_classes, N, t, cache_s->tmp_d_vec); // ys[t]
+			auto soft = gpu_softmax(cache_s->tmp_d_vec, n_output_classes);
+			gpu_set_col(ps, n_output_classes, N, t, 
+				soft); // soft
 
 			// loss += -log( ps[t](idx1_targets) )
 			loss += -logf(soft[idx1_targets]);
@@ -339,29 +363,40 @@ void Cuda4RNN::lossFun(cublasHandle_t handle,
 	{
 		if (t == N-1)
 		{
-			dy = gpu_get_col(ps, n_output_classes, N, t);
+			// dy = ps[t]
+			gpu_get_col(ps, n_output_classes, N, t, cache_s->tmp_d_vec); // ps[t] => tmp
+			dy = cache_s->tmp_d_vec;
 			dy[idx1_targets] -= 1;
 			// dWhy += dy * hs[t].t();
-			auto dWhy_right = gpu_mmul(handle,
-				dy, // dy
-				gpu_get_col(hs, n_hidden, N + 1, t + 1), // hs[t]
-				n_output_classes, 1, // dy_M, dy_N
-				n_hidden); // hst'_N
-			dWhy = gpu_add(dWhy, dWhy_right, n_output_classes * n_hidden);
+			gpu_get_col(hs, n_hidden, N + 1, t + 1, cache_s->tmp_d_vec); // hs[t] => tmp
+
+			//auto dWhy_right = gpu_mmul(handle,
+			//	dy, // dy
+			//	tmp_d_vec, // hs[t]
+			//	n_output_classes, 1, // dy_M, dy_N
+			//	n_hidden); // hst'_N
+			gpu_mmul(handle, dy, cache_s->tmp_d_vec, n_output_classes, 1, n_hidden,
+				cache_s->W_tmp1); // dWhy_right => tmp1
+			d_p_s->dWhy = gpu_add(d_p_s->dWhy,
+				cache_s->W_tmp1,
+				n_output_classes * n_hidden);
 			// dby += dy;
-			dby = gpu_add(dby, dy, n_output_classes);
+			d_p_s->dby = gpu_add(d_p_s->dby, dy, n_output_classes);
 
 			// dh = Why.t() * dy + dhnext;
-			auto Why_t_dy = gpu_mv(handle, 
-				Why, 
+			//auto Why_t_dy = 
+				gpu_mv(handle, 
+					p_s->Why,
 				dy, 
 				n_output_classes, n_hidden, 
+					cache_s->W_tmp1,
 				true);
-			dh = gpu_add(Why_t_dy, dhnext, n_hidden);
+			dh = gpu_add(dh, dhnext, n_hidden);
 
 			// dhraw = (1 - hs[t] % hs[t]) % dh; // mul elemwise
-			auto hst = gpu_get_col(hs, n_hidden, N + 1, t + 1);
-			auto hst_hst = gpu_mul_elemwise(hst, hst, n_hidden);
+			gpu_get_col(hs, n_hidden, N + 1, t + 1, cache_s->tmp_d_vec); // hs[t] => tmp
+			//auto hst = gpu_get_col(hs, n_hidden, N + 1, t + 1);
+			auto hst_hst = gpu_mul_elemwise(cache_s->tmp_d_vec, cache_s->tmp_d_vec, n_hidden);
 			device_vector<float> ones_hs_hs(n_hidden);
 			device_vector<float> ones_vec(n_hidden, 1.f);
 			thrust::transform(ones_vec.begin(), ones_vec.end(), 
@@ -371,27 +406,34 @@ void Cuda4RNN::lossFun(cublasHandle_t handle,
 			dhraw = gpu_mul_elemwise(ones_hs_hs, dh, n_hidden);
 
 			// dbh += dhraw;
-			dbh = gpu_add(dbh, dhraw, n_hidden);
+			d_p_s->dbh = gpu_add(d_p_s->dbh, dhraw, n_hidden);
 
 			// 目前的 W 都没加 惩罚
 			// dWxh += dhraw * xs[t].t(); // (50, 17)
-			auto dWxh_right = gpu_mmul(handle, 
+			gpu_get_col(xs, M, N, t, cache_s->tmp_d_vec); // xs[t] => tmp
+			//auto dWxh_right = 
+				gpu_mmul(handle, 
 				dhraw, // (50, 1)
-				gpu_get_col(xs, M, N, t), // xs[t]: (17)
+				cache_s->tmp_d_vec, // xs[t]: (17)
 				n_hidden, 1, 
-				n_features); // set xs[t]: (1, 17)
-			dWxh = gpu_add(dWxh, dWxh_right, n_hidden*n_features);
+				n_features, cache_s->W_tmp1); // set xs[t]: (1, 17)
+				d_p_s->dWxh = gpu_add(d_p_s->dWxh, cache_s->W_tmp1, n_hidden*n_features);
 
 			// dWhh += dhraw * hs[t - 1].t(); // (50, 50)
-			auto dWhh_right = gpu_mmul(handle, 
+			gpu_get_col(hs, n_hidden, N + 1, t + 1 - 1, cache_s->tmp_d_vec); // hs[t-1] => tmp
+			//auto dWhh_right = 
+				gpu_mmul(handle, 
 				dhraw, // (50, 1)
-				gpu_get_col(hs, n_hidden, N + 1, t + 1 - 1), // (50)
+				cache_s->tmp_d_vec, // (50)
 				n_hidden, 1,
-				n_hidden); // set (1,50)
-			dWhh = gpu_add(dWhh, dWhh_right, n_hidden*n_hidden);
+				n_hidden, cache_s->W_tmp1); // set (1,50)
+				d_p_s->dWhh =
+				gpu_add(d_p_s->dWhh, cache_s->W_tmp1, n_hidden*n_hidden);
 
 			// dhnext = Whh.t() * dhraw;
-			dhnext = gpu_mv(handle, Whh, dhraw, n_hidden, n_hidden, true);
+			//dhnext = 
+				gpu_mv(handle, p_s->Whh, dhraw, n_hidden, n_hidden, cache_s->W_tmp1, true);
+				dhnext = cache_s->W_tmp1;
 
 		}
 		else
@@ -400,8 +442,9 @@ void Cuda4RNN::lossFun(cublasHandle_t handle,
 			dh = dhnext;
 
 			// dhraw = (1 - hs[t] % hs[t]) % dh; // mul elemwise
-			auto hst = gpu_get_col(hs, n_hidden, N + 1, t + 1);
-			auto hst_hst = gpu_mul_elemwise(hst, hst, n_hidden);
+			gpu_get_col(hs, n_hidden, N + 1, t + 1, cache_s->tmp_d_vec); // hs[t] => tmp
+			//auto hst = gpu_get_col(hs, n_hidden, N + 1, t + 1);
+			auto hst_hst = gpu_mul_elemwise(cache_s->tmp_d_vec, cache_s->tmp_d_vec, n_hidden);
 			device_vector<float> ones_hs_hs(n_hidden);
 			device_vector<float> ones_vec(n_hidden, 1.f);
 			thrust::transform(ones_vec.begin(), ones_vec.end(),
@@ -411,41 +454,51 @@ void Cuda4RNN::lossFun(cublasHandle_t handle,
 			dhraw = gpu_mul_elemwise(ones_hs_hs, dh, n_hidden);
 
 			// dbh += dhraw;
-			dbh = gpu_add(dbh, dhraw, n_hidden);
+			d_p_s->dbh =
+				gpu_add(d_p_s->dbh, dhraw, n_hidden);
 
 			// dWxh += dhraw * xs[t].t(); // (50, 17)
-			auto dWxh_right = gpu_mmul(handle,
+			gpu_get_col(xs, M, N, t, cache_s->tmp_d_vec); // xs[t] => tmp
+			//auto dWxh_right = 
+				gpu_mmul(handle,
 				dhraw, // (50, 1)
-				gpu_get_col(xs, M, N, t), // xs[t]: (17)
+				cache_s->tmp_d_vec, // xs[t]: (17)
 				n_hidden, 1,
-				n_features); // set xs[t]: (1, 17)
-			dWxh = gpu_add(dWxh, dWxh_right, n_hidden*n_features);
+				n_features, cache_s->W_tmp1); // set xs[t]: (1, 17)
+				d_p_s->dWxh =
+				gpu_add(d_p_s->dWxh, cache_s->W_tmp1, n_hidden*n_features);
 
 			// dWhh += dhraw * hs[t - 1].t(); // (50, 50)
-			auto dWhh_right = gpu_mmul(handle,
+			gpu_get_col(hs, n_hidden, N + 1, t + 1 - 1, cache_s->tmp_d_vec); // hs[t-1] => tmp
+			//auto dWhh_right = 
+				gpu_mmul(handle,
 				dhraw, // (50, 1)
-				gpu_get_col(hs, n_hidden, N + 1, t + 1 - 1), // (50)
+					cache_s->tmp_d_vec, // (50)
 				n_hidden, 1,
-				n_hidden); // set (1,50)
-			dWhh = gpu_add(dWhh, dWhh_right, n_hidden*n_hidden);
+				n_hidden, cache_s->W_tmp1); // set (1,50)
+				d_p_s->dWhh =
+				//W_tmp2 = dWhh;
+				gpu_add(d_p_s->dWhh, cache_s->W_tmp1, n_hidden*n_hidden);
 
 			// dhnext = Whh.t() * dhraw;
-			dhnext = gpu_mv(handle, Whh, dhraw, n_hidden, n_hidden, true);
+			//dhnext = 
+				gpu_mv(handle, p_s->Whh, dhraw, n_hidden, n_hidden, cache_s->W_tmp1,true);
+				dhnext = cache_s->W_tmp1;
 		}
 	}
 
 	// clip: dWxh, dWhh, dWhy, dbh, dby
-	gpu_clip(dWxh, -5.f, 5.f); 
-	gpu_clip(dWhh, -5.f, 5.f);
-	gpu_clip(dWhy, -5.f, 5.f);
-	gpu_clip(dbh, -5.f, 5.f); // 思考下，是否需要 对 b 进行clip
-	gpu_clip(dby, -5.f, 5.f);
+	gpu_clip(d_p_s->dWxh, -5.f, 5.f); 
+	gpu_clip(d_p_s->dWhh, -5.f, 5.f);
+	gpu_clip(d_p_s->dWhy, -5.f, 5.f);
+	gpu_clip(d_p_s->dbh, -5.f, 5.f); // 思考下，是否需要 对 b 进行clip
+	gpu_clip(d_p_s->dby, -5.f, 5.f);
 
 	// --------------------------------------
 	return;
 }
 
-device_vector<float> Cuda4RNN::score2onehot(float score, int& idx1_targets, 
+device_vector<float> score2onehot(float score, int& idx1_targets, 
 	int n_output_classes,
 	float score_min,
 	float score_max)
@@ -479,15 +532,17 @@ device_vector<float> Cuda4RNN::score2onehot(float score, int& idx1_targets,
 	return d_vec;
 }
 
-void Cuda4RNN::sgd(device_vector<float>& P, device_vector<float> dP, 
+void sgd(device_vector<float>& P, device_vector<float> dP, 
 	int size, float alpha)
 {
 	// P = P - alpha * dP
-	auto P_right = gpu_scal(dP, size, -alpha);
-	P = gpu_add(P, P_right, size);
+	//auto P_right = gpu_scal(dP, size, -alpha);
+	P = gpu_add(P, 
+			gpu_scal(dP, size, -alpha), // right
+			size);
 }
 
-void Cuda4RNN::test_gpu_fns_CudaUtils()
+void test_gpu_fns_CudaUtils()
 {
 	// ------------------------------------
 	cublasHandle_t handle;

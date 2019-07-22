@@ -167,10 +167,11 @@ struct clip_functor
 	C(am,bn) = A(am,an) * B(bm,bn)
 	return C
 */
-device_vector<float> gpu_mmul(cublasHandle_t handle,
-	device_vector<float> d_A, 
-	device_vector<float> d_B,
-	int A_M, int A_N, int B_N);
+void gpu_mmul(cublasHandle_t handle,
+	device_vector<float>& d_A, 
+	device_vector<float>& d_B,
+	int A_M, int A_N, int B_N, 
+	device_vector<float>& dest);
 
 
 /*
@@ -179,10 +180,12 @@ device_vector<float> gpu_mmul(cublasHandle_t handle,
 
 	y(m) = A'(m,k) * x(m), isMT = true
 */
-device_vector<float> gpu_mv(cublasHandle_t handle,
-	device_vector<float> d_A,
-	device_vector<float> d_x,
-	int am, int an, bool isMT = false);
+void gpu_mv(cublasHandle_t handle,
+	device_vector<float>& d_A,
+	device_vector<float>& d_x,
+	int am, int an,
+	device_vector<float>& dest,
+	bool isMT = false);
 
 /*
 	vector-vector or matrix-matrix add.
@@ -201,8 +204,8 @@ device_vector<float> gpu_add(device_vector<float> d_x,
 	vector-vector or matrix-matrix multiplication element-wise.
 	z = x .* y
 */
-device_vector<float> gpu_mul_elemwise(device_vector<float> d_x,
-	device_vector<float> d_y,
+device_vector<float> gpu_mul_elemwise(device_vector<float>& d_x,
+	device_vector<float>& d_y,
 	int size);
 
 /*
@@ -213,7 +216,8 @@ device_vector<float> gpu_tanh(device_vector<float> d_x, int size);
 /*
 	y = alpha * x
 */
-device_vector<float> gpu_scal(device_vector<float> d_x, int size, float alpha);
+device_vector<float> gpu_scal(device_vector<float>& d_x, int size, float alpha);
+
 
 device_vector<float> gpu_get_row(device_vector<float> d_A,
 	thrust::device_vector<int> rowLoc,
@@ -224,8 +228,13 @@ device_vector<float> gpu_get_row(device_vector<float> d_A,
 	d_A: matrix(M,N)
 
 	return device_vector
+
+	若返回一个d_vec，涉及到gpu内存的分配、copy、释放。
+	这对gpu是很慢的，gpu是memory bound.
+
+	dest 的起始size要设置足够大
 */
-device_vector<float> gpu_get_col(device_vector<float> d_A, int M, int N, int col);
+void gpu_get_col(device_vector<float>& d_A, int M, int N, int col, device_vector<float>& dest);
 
 /*
 	set "d_A" with "values".
@@ -252,11 +261,11 @@ device_vector<float> gpu_generate_rand(int n_rows, int n_cols,
 	softmax = ---------------------
 				sum(exp([...]))
 */
-device_vector<float> gpu_softmax(device_vector<float> d_x, int size);
+device_vector<float> gpu_softmax(device_vector<float>& d_x, int size);
 
-int gpu_max_index(device_vector<float> d_x);
+int gpu_max_index(device_vector<float>& d_x);
 
-float gpu_max_value(device_vector<float> d_x);
+float gpu_max_value(device_vector<float>& d_x);
 
 void gpu_clip(device_vector<float>& d_x,
 	float lowMargin, float highMargin);

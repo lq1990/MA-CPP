@@ -16,6 +16,7 @@
 
 // for Test
 #include "gpu_fns.h"
+#include "gpu_raw_fns.h"
 #include "CudaUtils.h"
 
 using namespace std;
@@ -37,9 +38,12 @@ void test()
 	cout << "data size: " << sces_data.size() << endl;
 	cout << " ========== read data over =======\n" << endl;
 
-	// train 当前使用的class。试试不用class，直接用fn。对比下速度
-	Cuda4RNN* rnn;
-	cudaMalloc((void**)&rnn, sizeof(Cuda4RNN));
+	// train 当前使用的class。试试不用class，直接用fn。对比下速度。
+	// 用不用class都一样。所以慢的症结不在class
+	// 那在：thrust？ get、set col ？？？
+
+	/*Cuda4RNN* rnn;
+	cudaMalloc((void**)&rnn, sizeof(Cuda4RNN));*/
 	//rnn->alpha = device_vector<float>(1);
 	//rnn->total_epoches = device_vector<int>(1);
 	//rnn->n_features = device_vector<int>(1);
@@ -49,7 +53,7 @@ void test()
 	//rnn->score_max = device_vector<float>(1);
 
 	float alpha = 0.1f;
-	int total_epoches = 501;
+	int total_epoches = 11;
 	int n_features = 17;
 	int n_hidden = 50;
 	int n_output_classes = 10;
@@ -62,28 +66,121 @@ void test()
 	device_vector<float> by = gpu_generate_rand(n_output_classes, 1, -0.01, 0.01f, 222);
 
 	device_vector<float> lossAll; // init size=0
-	rnn->trainMultiThread(sces_id_score,
+
+	// create 3 cache
+	device_vector<float> d_cache1(n_hidden);// for get/set col
+	device_vector<float> d_cache2(n_hidden*n_hidden);
+	device_vector<float> d_cache3(n_hidden*n_hidden); 
+	device_vector<float> d_cache4(n_hidden*n_hidden);
+
+	// struct
+	sces_struct* sces_s;
+	cudaMallocManaged((void**)&sces_s, sizeof(sces_struct));
+	/*sces_s->sces_id_score = sces_id_score;
+	sces_s->sces_data = sces_data;
+	sces_s->sces_data_mn = sces_data_mn;
+	sces_s->sces_data_idx_begin = sces_data_idx_begin;*/
+	cudaMallocManaged((void**)&sces_s->sces_id_score, 
+		sces_id_score.size() * sizeof(float));
+	cudaMallocManaged((void**)&sces_s->sces_data,
+		sces_data.size() * sizeof(float)); 
+	cudaMallocManaged((void**)&sces_s->sces_data_mn,
+		sces_data_mn.size() * sizeof(float)); 
+	cudaMallocManaged((void**)&sces_s->sces_data_idx_begin,
+		sces_data_idx_begin.size() * sizeof(float));
+	// assign values of sces
+	{
+		for (int i = 0; i < sces_id_score.size(); i++)
+		{
+			sces_s->sces_id_score[i] = sces_id_score[i];
+		}
+		for (int i = 0; i < sces_data.size(); i++)
+		{
+			sces_s->sces_data[i] = sces_data[i];
+		}
+		for (int i = 0; i < sces_data_mn.size(); i++)
+		{
+			sces_s->sces_data_mn[i] = sces_data_mn[i];
+		}
+		for (int i = 0; i < sces_data_idx_begin.size(); i++)
+		{
+			sces_s->sces_data_idx_begin[i] = sces_data_idx_begin[i];
+		}
+	}
+
+	params_struct* p_s;
+	cudaMallocManaged((void**)&p_s, sizeof(params_struct));
+	cudaMallocManaged((void**)&p_s->Wxh, n_hidden*n_features* sizeof(float));
+	cudaMallocManaged((void**)&p_s->Whh, n_hidden*n_hidden* sizeof(float));
+	cudaMallocManaged((void**)&p_s->Why, n_hidden*n_output_classes* sizeof(float));
+	cudaMallocManaged((void**)&p_s->bh, n_hidden* sizeof(float));
+	cudaMallocManaged((void**)&p_s->by, n_output_classes* sizeof(float));
+	/*p_s->Wxh = Wxh;
+	p_s->Whh = Whh;
+	p_s->Why = Why;
+	p_s->bh = bh;
+	p_s->by = by;*/
+	// assign values of p_s 
+	{
+
+	}
+
+	cache_struct* cache_s;
+	cudaMallocManaged((void**)&cache_s, sizeof(cache_struct));
+	/*cache_s->tmp_d_vec = d_cache1;
+	cache_s->W_tmp1 = d_cache2;
+	cache_s->W_tmp2 = d_cache3;
+	cache_s->W_tmp3 = d_cache4;*/
+
+	for (int i = 0; i < sces_id_score.size(); i+=2)
+	{
+		cout << "id: " << sces_id_score[i] <<
+			"\tscore: " << sces_id_score[i + 1] << endl;
+	}
+
+	cout << "alloc mem of struct over" << endl;
+
+	trainMultiThread(
+		/*sces_id_score,
 		sces_data,
 		sces_data_mn, 
-		sces_data_idx_begin,
+		sces_data_idx_begin,*/
+		sces_s,
 		lossAll,
-		Wxh,
+		/*Wxh,
 		Whh,
 		Why,
 		bh,
-		by,
+		by,*/
+		p_s,
 		alpha,
 		total_epoches,
 		n_features,
 		n_hidden,
 		n_output_classes,
 		score_min,
-		score_max);
+		score_max,
+		/*d_cache1,
+		d_cache2,
+		d_cache3,
+		d_cache4*/
+		cache_s
+	);
 
 	cout << "lossAll size: " << lossAll.size() << endl;
 	printToHost(lossAll, lossAll.size(), 1, "lossAll on host");
 
-	cudaFree(rnn);
+	// time, total_epoches = 11
+	// return vec之前： 25.8s, 35s
+
+
+	cudaFree(cache_s);
+	cudaFree(p_s);
+	cudaFree(sces_s);
+
+
+
+
 
 	// -------------- gpu_fns --------------------------------
 	//Cuda4RNN::test_gpu_fns_CudaUtils();
@@ -240,9 +337,15 @@ int main()
 	MyClock mclock = MyClock("main");
 	// ===============================================
 	
-	test();
+	//test();
+	float* d_x;
+	d_x = (float*)cudaMallocManaged((void**)&d_x, 15);
+	gpu_fill_rand(d_x, 5, 3);
 	
-
+	for (int i = 0; i < 15; i++)
+	{
+		cout << d_x[i] << "  ";
+	}
 	
 
 	// ============================================
