@@ -99,7 +99,7 @@ void trainMultiThread(
 		float& loss,
 		params_struct* p_s,
 		d_params_struct* d_p_s,
-		rnn_params_struct* rnn_p,
+		rnn_params_struct* rnn_p_,
 		cache_struct* cache_s
 	);
 
@@ -114,8 +114,10 @@ float* score2onehot(float score, int& idx1_targets,
 	/*
 		P = P - alpha * dP
 	*/
-	void sgd(float* P, float* dP, 
-		int size, float alpha);
+	void sgd(cublasHandle_t handle, params_struct* P, d_params_struct* dP, 
+		rnn_params_struct* rnn_p_s);
+
+	void sgd0(cublasHandle_t handle, float* P, float* dP, int size, float alpha);
 
 	void test_gpu_fns();
 

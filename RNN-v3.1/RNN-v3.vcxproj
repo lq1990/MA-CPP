@@ -131,7 +131,6 @@
     <CudaCompile Include="Client.cpp" />
     <CudaCompile Include="gpu_raw_fns.cu" />
     <ClCompile Include="MyClock.cpp" />
-    <ClCompile Include="MyParams.cpp" />
     <ClCompile Include="Script.cpp" />
     <CudaCompile Include="Cuda4RNN.cu" />
     <CudaCompile Include="IOMatlab.cpp" />
@@ -141,7 +140,6 @@
     <ClInclude Include="gpu_raw_fns.h" />
     <ClInclude Include="IOMatlab.h" />
     <ClInclude Include="MyClock.h" />
-    <ClInclude Include="MyParams.h" />
     <ClInclude Include="Script.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

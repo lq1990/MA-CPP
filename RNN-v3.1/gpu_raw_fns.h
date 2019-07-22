@@ -72,22 +72,20 @@ void gpu_mul_elemwise(const float* d_x,
 */
 void gpu_tanh(float* d_x, int size, float* dest);
 
+/**
+	tanh(v1 + v2 + v3)
+*/
+void gpu_tanh_add_add(float* v1, float* v2, float* v3, int size,
+	float* dest);
+
 /*
 	y = alpha * x
 */
 void gpu_scal(float* d_x, int size, float alpha, float* dest);
 
-
-void gpu_get_row(const float* d_A,
-	float* rowLoc,
-	int an,
-	float* dest);
-
 /*
 	get col of a matrix.
 	d_A: matrix(M,N)
-
-	return device_vector
 
 	若返回一个d_vec，涉及到gpu内存的分配、copy、释放。
 	这对gpu是很慢的，gpu是memory bound.
@@ -95,8 +93,7 @@ void gpu_get_row(const float* d_A,
 	dest 的起始size要设置足够大
 */
 void gpu_get_col(float* d_A, 
-	int M, int N, int col, 
-	float* dest);
+	int M, int N, int col, float* dest);
 
 /*
 	set "d_A" with "values".
@@ -114,15 +111,19 @@ void gpu_fill_rand(float* d_A,
 */
 void gpu_fill(float* d_out, int size, float value);
 
-void gpu_generate_rand(float* dest,int n_rows, int n_cols,
-	float low = 0.f, float high = 1.f, int seed = 10);
+/**
+	cache[0] = sum(d_in)
+
+	cacheSize >= size && cacheSize=pow(2,n)
+*/
+float gpu_sum(float* d_in, int size, float* cache);
 
 /*
 				exp([1,2,3,...])
 	softmax = ---------------------
 				sum(exp([...]))
 */
-void gpu_softmax(float* d_x, int size, float* dest);
+void gpu_softmax(float * d_in, int size, float * dest, float* cache);
 
 int gpu_max_index(float* d_x, int size);
 
@@ -132,9 +133,10 @@ void gpu_clip(float* d_x,
 	float lowMargin, float highMargin);
 
 /**
-	d_in[beginIdx, endIdx) => copy to d_out
+	d_in[beginIdx, endIdx) => copy to d_out[outBegin,)
 */
-void gpu_copy(float* d_out, float* d_in, int beginIdx, int endIdx);
+void gpu_copy(float * d_out, int outBegin,
+	float * d_in, int inBegin, int inEnd);
 
 void gpu_clear_arr(float* d_arr, int size);
 
@@ -146,6 +148,16 @@ void gpu_clear_arr(float* d_arr, int size);
 */
 void printToHost(float* d_A, int n_rows, int n_cols, string title);
 
+/**
+	print last numElems
+*/
+void printLast(float* d_x, int size, int numElems, string title);
+
 void printToHost(int* d_A, int n_rows, int n_cols, string title);
 
 void gpu_raw_warmup();
+
+/**
+	找到 >= value 的最近的一个 以2为底的指数的值
+*/
+int gpu_find_2exp(int value);

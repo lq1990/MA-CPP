@@ -21,9 +21,6 @@
     <ClCompile Include="MyClock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MyParams.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IOMatlab.h">
@@ -33,9 +30,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MyClock.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="MyParams.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Cuda4RNN.h">
