@@ -23,17 +23,18 @@ void train()
 	sces_struct* sces_s;
 	cudaMallocManaged((void**)&sces_s, sizeof(sces_struct));
 	// ========= read data from matlab-file ==============
-	int numSces = IOMatlab::read("listStructTrain",
+	IOMatlab::read("listStructTrain",
 		sces_s); // num of scenarios
-	int dataSize = sces_s->sces_data_idx_begin[numSces]; // total size of data
-	cout << "total size: " << dataSize << endl;
+	int size = sces_s->total_size[0];
+	int numSces = sces_s->num_sces[0]; 
+	cout << "total size: " << size << ", numS: " << numSces << endl;
 	cout << " ========== read data into 'sces_s' over =======\n" << endl;
-	printLast(sces_s->sces_data, dataSize, 10, "last 10 elems of data");
+	printLast(sces_s->sces_data, size, 10, "last 10 elems of data");
 
 	// print first sce: sce0
 	float* id_score = sces_s->sces_id_score;
-	int* mn = sces_s->sces_data_mn;
-	int* idx_begin = sces_s->sces_data_idx_begin;
+	float* mn = sces_s->sces_data_mn;
+	float* idx_begin = sces_s->sces_data_idx_begin;
 	printToHost(id_score, 2, numSces, "id_score");
 	printToHost(mn, 2, numSces, "mn");
 	printToHost(idx_begin, 1, numSces+1, "idx begin");
@@ -49,7 +50,7 @@ void train()
 	cout << "print sce0 over \n";
 
 	// ===================== train ============================
-	int total_epoches = 501;
+	int total_epoches = 51; 
 	int n_features = 17;
 	int n_hidden = 50;
 	int n_output_classes = 10;
@@ -72,10 +73,12 @@ void train()
 	cudaMallocManaged((void**)&p_s->Why, n_hidden*n_output_classes * sizeof(float));
 	cudaMallocManaged((void**)&p_s->bh, n_hidden * sizeof(float));
 	cudaMallocManaged((void**)&p_s->by, n_output_classes * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->tmp_d_vec, n_features * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp1, n_hidden*n_features * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp2, n_hidden*n_features * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp3, n_hidden*n_features * sizeof(float));
+	int sum1 = n_features + n_features + n_output_classes;
+	cudaMallocManaged((void**)&cache_s->tmp_d_vec, sum1 * sizeof(float));
+	cudaMallocManaged((void**)&cache_s->tmp_d_vec2, sum1 * sizeof(float));
+	cudaMallocManaged((void**)&cache_s->W_tmp1, sum1*sum1 * sizeof(float));
+	cudaMallocManaged((void**)&cache_s->W_tmp2, sum1*sum1 * sizeof(float));
+	cudaMallocManaged((void**)&cache_s->W_tmp3, sum1*sum1 * sizeof(float));
 	// ---------- assign values ------------
 	// sces_s over
 	// rnn_p_s
@@ -86,7 +89,7 @@ void train()
 	rnn_p_s->alpha = alpha;
 	rnn_p_s->score_min = score_min;
 	rnn_p_s->score_max = score_max;
-	// p_s
+	// p_s, init rand val of W b
 	gpu_fill_rand(p_s->Wxh, rnn_p_s->n_hidden, rnn_p_s->n_features, -0.1f, 0.1f, 1);
 	gpu_fill_rand(p_s->Whh, rnn_p_s->n_hidden, rnn_p_s->n_hidden, -0.1f, 0.1f, 11);
 	gpu_fill_rand(p_s->Why, rnn_p_s->n_output_classes, rnn_p_s->n_hidden, -0.1f,0.1f,111);
@@ -100,6 +103,10 @@ void train()
 		cache_s);
 
 	cout << " ========== train over ============== \n";
+	/**
+		epoches 101 : 93s
+
+	*/
 
 }
 
@@ -151,9 +158,9 @@ int main()
 	MyClock mclock = MyClock("main");
 	// ===============================================
 	
-	//train();
+	train();
 	
-	test_gpu_fns();
+	//test_gpu_fns();
 	
 
 	// ============================================

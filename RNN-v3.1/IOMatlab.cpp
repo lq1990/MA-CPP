@@ -12,7 +12,7 @@ IOMatlab::~IOMatlab()
 }
 
 
-int IOMatlab::read( 
+void IOMatlab::read( 
 	const char* fileName,
 	sces_struct* sces_s
 	)
@@ -66,10 +66,13 @@ int IOMatlab::read(
 		2 * numSces * sizeof(int));
 	cudaMallocManaged((void**)&sces_s->sces_data_idx_begin,
 		(numSces+1 )* sizeof(int)); // 比场景数目多一个，最后一个是data size
+	cudaMallocManaged((void**)&sces_s->num_sces, sizeof(int));
+	cudaMallocManaged((void**)&sces_s->total_size, sizeof(int));
 
 	// loop 2. 赋值
 	// traverse rows, i.e. scenarios
-	for (int i = 0, count=0; i < numSces; i++)
+	int count = 0;
+	for (int i = 0; i < numSces; i++)
 	{
 		// 第 i 个 sce
 
@@ -139,7 +142,7 @@ int IOMatlab::read(
 		sces_s->sces_data_idx_begin[i + 1] = idx_cumsum;
 	}
 	sces_s->sces_data_idx_begin[numSces] = total_size;
-
-	return numSces;
+	sces_s->num_sces[0] = numSces;
+	sces_s->total_size[0] = count;
 }
 

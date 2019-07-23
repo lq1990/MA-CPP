@@ -42,6 +42,11 @@ typedef struct d_params_struct
 	float* dWhy;
 	float* dbh;
 	float* dby;
+	float* dhnext;
+
+	float* dy;
+	float* dh;
+	float* dhraw;
 };
 
 typedef struct params_struct
@@ -61,16 +66,22 @@ typedef struct sces_struct
 {
 	float* sces_id_score;// [id0,score0, id1,score1, id2,score2, ...]
 	float* sces_data;// all data
-	int* sces_data_mn;// [m0,n0, m1,n1, m2,n2, ...]
-	int* sces_data_idx_begin;// [idx0, idx1, idx2, ...]
+	float* sces_data_mn;// [m0,n0, m1,n1, m2,n2, ...]
+	float* sces_data_idx_begin;// [idx0, idx1, idx2, ...]
+	float* num_sces; // [0]
+	float* total_size; // [0]
 };
 
-typedef struct cache_struct
+
+
+typedef struct map_state_struct
 {
-	float* tmp_d_vec; // for get/set col
-	float* W_tmp1;
-	float* W_tmp2;
-	float* W_tmp3;
+	// => map<int,mat> xs, hs, ys, ps;
+	float* xs;
+	float* hs; // n_cols of hs is 1 more than others
+	float* ys;
+	float* ps;
+	float* Nmax;
 };
 
 
@@ -100,7 +111,8 @@ void trainMultiThread(
 		params_struct* p_s,
 		d_params_struct* d_p_s,
 		rnn_params_struct* rnn_p_,
-		cache_struct* cache_s
+		cache_struct* cache_s,
+		map_state_struct* map_s
 	);
 
 	/*

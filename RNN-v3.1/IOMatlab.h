@@ -27,7 +27,7 @@ public:
 
 		return numSces
 	*/
-	static int read(const char* fileName,
+	static void read(const char* fileName,
 		sces_struct* sces_s);
 
 };

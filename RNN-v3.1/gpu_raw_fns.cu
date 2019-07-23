@@ -64,7 +64,9 @@ __global__ void add_kernel(const float * d_x,
 	int tid = get_tid();
 	if (tid < size)
 	{
-		dest[tid] = d_x[tid] + d_y[tid];
+		float val1 = d_x[tid];
+		float val2 = d_y[tid];
+		dest[tid] = val1 + val2;
 	}
 }
 
@@ -121,8 +123,8 @@ __global__ void sum_kernel(float * d_in, int size, float* cache)
 	// 同一个线程，在block中有位置tid，grid全局也有位置myId
 
 	// load data from global mem
-	sdata[tid] = d_in[myId];
-	__syncthreads();
+	sdata[tid] = d_in[myId]; // copy data of d_in into sdata. don't op d_in
+	__syncthreads(); // sync inside a block
 
 	// reduce
 	for (int s = blockDim.x/2; s > 0; s >>= 1)
@@ -141,6 +143,94 @@ __global__ void sum_kernel(float * d_in, int size, float* cache)
 	
 }
 
+__global__ void exp_kernel(float* d_in, int size, float* dest)
+{
+	int tid = get_tid();
+	if (tid < size)
+	{
+		dest[tid] = expf(d_in[tid]);
+	}
+}
+
+__global__ void divide_kernel(float* d_in, int size, float den, float* dest)
+{
+	// (each elem of d_in) / den
+	int tid = get_tid();
+	if (tid < size)
+	{
+		float val = d_in[tid] / (den + powf(10, -8)); // avoid /0
+		dest[tid] = val;
+	}
+
+}
+
+__global__ void find_max_val_kernel(float* d_in, int size, float* cache)
+{
+	extern __shared__ float sdata[];
+
+	int myId = get_tid();
+	int tid = threadIdx.x;
+
+	// load data from global mem
+	sdata[tid] = d_in[myId]; // copy data of d_in into sdata. don't op d_in
+	__syncthreads(); // sync inside a block
+
+	// reduce
+	for (int s = blockDim.x / 2; s > 0; s >>= 1)
+	{
+		if (tid < s)
+		{
+			// 折半方法，把大的数 放在左边
+			float left = sdata[tid], right = sdata[tid + s];
+			sdata[tid] = (left > right ? left : right);
+		}
+		__syncthreads();
+	}
+
+	if (tid == 0)
+	{
+		// max val of cur block => saves in cache
+		cache[blockIdx.x] = sdata[0]; 
+	}
+
+}
+
+__global__ void find_max_idx_kernel(float* d_in, int size, float maxVal,
+	float* cache)
+{
+	int tid = get_tid();
+
+	if (tid < size)
+	{
+		float inVal = d_in[tid];
+		if (inVal == maxVal)
+		{
+			cache[0] = tid;
+		}
+	}
+
+}
+
+__global__ void clip_kernel(float * d_in_out, int size, 
+	float lowMargin, float highMargin)
+{
+	// clip d_in_out inplace
+	int tid = get_tid();
+
+	if (tid < size)
+	{
+		float val = d_in_out[tid];
+
+		if (val > highMargin)
+		{
+			d_in_out[tid] = highMargin;
+		}
+		else if (val < lowMargin)
+		{
+			d_in_out[tid] = lowMargin;
+		}
+	}
+}
 
 /**
 	get col data of d_A(M,N),
@@ -221,17 +311,66 @@ void gpu_softmax(float * d_in, int size, float * dest, float* cache)
 	int s = ceil(sqrt( (size + bs - 1.) / bs ));
 	dim3 gs = dim3(s, s);
 
-	// step 1. exp(x)
-
+	// step 1. dest = exp(in)
+	exp_kernel <<< gs, bs >>> (d_in, size, dest);
 	cudaDeviceSynchronize();
-	// step 2. sum(exp(x))
 
-	cudaDeviceSynchronize();
-	// step 3. exp/sum(exp)
+	// step 2. sumVal = sum(dest)
+	float sumExp = gpu_sum(dest, size, cache);
 
+	// step 3. dest = dest / sumVal
+	divide_kernel<<<gs, bs>>>(dest, size, sumExp, dest);
 
 	cudaDeviceSynchronize();
 }
+
+
+float gpu_max_value(float * d_in, int size, float* cache)
+{
+	// 需要确保 d_in 的size less equal than 512 ^ 2
+	// gridsize, blocksize
+	int bs = 512;
+	int gs = (size + bs - 1) / bs;
+	find_max_val_kernel << <gs, bs, bs * sizeof(float) >> > (d_in, size, cache);
+	cudaDeviceSynchronize();
+
+	// 对cache中数据继续sum。cache中存储了上一步blocks中sum的结果
+	if (gs == 1)
+	{
+		return cache[0];
+	}
+	else
+	{
+		find_max_val_kernel << <1, bs, bs * sizeof(float) >> > (cache, gs, cache);
+		cudaDeviceSynchronize(); // kernel之后一定记得加同步
+
+		return cache[0];
+	}
+}
+
+
+int gpu_max_index(float * d_in, int size, float* cache)
+{
+	float maxVal = gpu_max_value(d_in, size, cache);
+
+	int bs = 512;
+	int gs = (size + bs - 1) / bs;
+	find_max_idx_kernel << <gs, bs >> > (d_in, size, maxVal, cache);
+
+	cudaDeviceSynchronize();
+	return cache[0];
+}
+
+void gpu_clip(float * d_in_out, int size, float lowMargin, float highMargin)
+{
+	int bs = 256;
+	int s = ceil(sqrt((size + bs - 1.) / bs));
+	dim3 gs = dim3(s, s);
+	clip_kernel << <gs, bs >> > (d_in_out, size, lowMargin, highMargin);
+
+	cudaDeviceSynchronize();
+}
+
 
 void gpu_copy(float * d_out, int outBegin, 
 	float * d_in, int inBegin, int inEnd)
@@ -425,6 +564,68 @@ void gpu_tanh_add_add(float * v1, float * v2, float * v3, int size,
 	dim3 gs = dim3(s, s);
 
 	tanh_add_add_kernel << <gs, bs >> > (v1, v2, v3, size, dest);
+
+	cudaDeviceSynchronize();
+}
+
+void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
+	float* M1, int m1, int n1, float* v1,
+	float* M2, int m2, int n2, float* v2, 
+	float* v3,
+	float* dest,
+	cache_struct* cache_s)
+{
+	// dest = tanh (M1*v1 + M2*v2 + v3)
+	float alpha = 1.0f;
+	float beta = 0.0f;
+	// M1*v1
+	cublasSgemv(handle, // y = alpha * A*x + beta*y
+		CUBLAS_OP_N,
+		m1, n1,
+		&alpha,
+		M1, m1,
+		v1, 1,
+		&beta,
+		cache_s->W_tmp1, 1);
+	cudaDeviceSynchronize();
+	// M2*v2
+	cublasSgemv(handle, // y = alpha * A*x + beta*y
+		CUBLAS_OP_N,
+		m2, n2,
+		&alpha,
+		M2, m2,
+		v2, 1,
+		&beta,
+		cache_s->W_tmp2, 1);
+
+	cudaDeviceSynchronize();
+	// tanh add add
+	gpu_tanh_add_add(cache_s->W_tmp1, cache_s->W_tmp2, v3, m1, dest);
+
+}
+
+__global__ void tanh_der_hs_dh_kernel(float * d_in1, float * d_in2, int size, 
+	float * dest)
+{
+	// (1 - hs[t] .* hs[t]) .* dh
+	int tid = get_tid();
+
+	if (tid < size)
+	{
+		float val1 = d_in1[tid];
+		float val2 = d_in2[tid];
+
+		dest[tid] = (1.f - val1 * val1) * val2;
+	}
+}
+
+void gpu_tanh_der_hs_dh(float * d_in1, float * d_in2, int size, float * dest)
+{
+	int bs = 256;
+	int s = ceil(sqrt((size + bs - 1.f) / bs));
+	dim3 gs = dim3(s, s);
+
+	tanh_der_hs_dh_kernel << <gs, bs >> > (d_in1, d_in2, size, dest);
 
 	cudaDeviceSynchronize();
 }

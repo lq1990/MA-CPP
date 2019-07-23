@@ -5,6 +5,14 @@
 	
 */
 
+typedef struct cache_struct
+{
+	float* tmp_d_vec; // for get/set col
+	float* tmp_d_vec2; // for get/set col
+	float* W_tmp1;
+	float* W_tmp2;
+	float* W_tmp3;
+};
 
 #include <iostream>
 #include "cublas_v2.h"
@@ -78,6 +86,20 @@ void gpu_tanh(float* d_x, int size, float* dest);
 void gpu_tanh_add_add(float* v1, float* v2, float* v3, int size,
 	float* dest);
 
+void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle, 
+	float* M1, int m1, int n1, float* v1, 
+	float* M2, int m2, int n2, float* v2, float* v3, 
+	float* dest,
+	cache_struct* cache_s);
+
+/**
+	(1 - hs[t] .* hs[t]) .* dh
+
+	in1: hs
+	in2: dh
+*/
+void gpu_tanh_der_hs_dh(float* d_in1, float* d_in2, int size, float* dest);
+
 /*
 	y = alpha * x
 */
@@ -122,15 +144,17 @@ float gpu_sum(float* d_in, int size, float* cache);
 				exp([1,2,3,...])
 	softmax = ---------------------
 				sum(exp([...]))
+
+	size of cache >= size of d_in
 */
 void gpu_softmax(float * d_in, int size, float * dest, float* cache);
 
-int gpu_max_index(float* d_x, int size);
+float gpu_max_value(float* d_in, int size, float* cache);
 
-float gpu_max_value(float* d_x, int size);
 
-void gpu_clip(float* d_x,
-	float lowMargin, float highMargin);
+int gpu_max_index(float* d_in, int size, float* cache);
+
+void gpu_clip(float * d_in_out, int size, float lowMargin, float highMargin);
 
 /**
 	d_in[beginIdx, endIdx) => copy to d_out[outBegin,)

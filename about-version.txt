@@ -1,0 +1,14 @@
+RNN-01
+	naive RNN with 1 hidden layer
+
+RNN-v2-OneHidden
+	+ Multi-thread CPU Computing
+RNN-v2
+	naive RNN with 2 hidden layers
+	+ Multi-thread
+
+RNN-v3
+	Cuda trial of naive RNN with thrust::device_vector<float>()
+RNN-v3.1
+	Cuda trial of naive RNN with float*
+	
