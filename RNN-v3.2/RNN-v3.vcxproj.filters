@@ -44,6 +44,9 @@
     <ClInclude Include="struct_params.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Para.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="IOMatlab.cpp">

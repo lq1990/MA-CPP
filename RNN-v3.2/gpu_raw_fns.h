@@ -8,6 +8,7 @@
 #include <string>
 #include "math.h"
 #include <time.h>
+#include "Para.h"
 
 using namespace std;
 
@@ -16,14 +17,6 @@ using namespace std;
 
 */
 
-typedef struct cache_struct
-{
-	float* tmp_d_vec; // for get/set col
-	float* tmp_d_vec2; // for get/set col
-	float* W_tmp1;
-	float* W_tmp2;
-	float* W_tmp3;
-};
 
 #define get_tid() (blockDim.x * (blockIdx.x + blockIdx.y * gridDim.x) + threadIdx.x)
 
@@ -92,7 +85,7 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 	float* M1, int m1, int n1, float* v1, 
 	float* M2, int m2, int n2, float* v2, float* v3, 
 	float* dest,
-	cache_struct* cache_s);
+	Para* para);
 
 /**
 	(1 - hs[t] .* hs[t]) .* dh

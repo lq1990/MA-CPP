@@ -10,5 +10,8 @@ RNN-v2
 RNN-v3
 	Cuda trial of naive RNN with thrust::device_vector<float>()
 RNN-v3.1
-	Cuda trial of naive RNN with float*
+	Cuda trial of naive RNN with float* to replace thrust
+RNN-v3.2
+	use cudaMalloc(Host) instead of cudaMallocManaged
+	to speed up
 	

@@ -6,6 +6,8 @@
 	author: LQ
 */
 
+
+
 #include <iostream>
 #include <Windows.h>
 #include "IOMatlab.h"
@@ -20,28 +22,27 @@ using namespace std;
 void train()
 {
 	// ------------- train ---------------------------
-	// read data
-	// declare
-	sces_struct* sces_s;
-	cudaMallocManaged((void**)&sces_s, sizeof(sces_struct));
+	Para* para;
+	cudaMallocManaged((void**)&para, sizeof(Para));
+
 	// ========= read data from matlab-file ==============
 	IOMatlab::read("listStructTrain",
-		sces_s); // num of scenarios
-	int size = sces_s->total_size[0];
-	int numSces = sces_s->num_sces[0]; 
+		para); // num of scenarios
+	int size = para->total_size[0];
+	int numSces = para->num_sces[0]; 
 	cout << "total size: " << size << ", numS: " << numSces << endl;
-	cout << " ========== read data into 'sces_s' over =======\n" << endl;
-	printLast(sces_s->sces_data, size, 10, "last 10 elems of data");
+	cout << " ========== read data into 'para' over =======\n" << endl;
+	printLast(para->sces_data, size, 10, "last 10 elems of data");
 
 	// print first sce: sce0
-	float* id_score = sces_s->sces_id_score;
-	float* mn = sces_s->sces_data_mn;
-	float* idx_begin = sces_s->sces_data_idx_begin;
+	float* id_score = para->sces_id_score;
+	float* mn = para->sces_data_mn;
+	float* idx_begin = para->sces_data_idx_begin;
 	printToHost(id_score, 2, numSces, "id_score");
 	printToHost(mn, 2, numSces, "mn");
 	printToHost(idx_begin, 1, numSces+1, "idx begin");
 
-	float* sces_data = sces_s->sces_data;
+	float* sces_data = para->sces_data;
 	float* sce0_data; // data of first sce
 	cudaMallocManaged((void**)&sce0_data, mn[0] * mn[1] * sizeof(float));
 	for (int i = 0; i < mn[0]*mn[1]; i++)
@@ -52,59 +53,60 @@ void train()
 	cout << "print sce0 over \n";
 
 	// ===================== train ============================
-	int total_epoches = 51; 
-	int n_features = 17;
-	int n_hidden = 50;
-	int n_output_classes = 10;
-	float alpha = 0.1f;
-	float score_min = 6.0f;
-	float score_max = 8.9f;
+
 	// decalre
 	float* lossAllVec;
-	params_struct* p_s;
-	rnn_params_struct* rnn_p_s;
-	cache_struct* cache_s;
 	// malloc loss and struct
-	cudaMallocManaged((void**)&lossAllVec, total_epoches*sizeof(float));
-	cudaMallocManaged((void**)&rnn_p_s, sizeof(rnn_params_struct));
-	cudaMallocManaged((void**)&p_s, sizeof(params_struct));
-	cudaMallocManaged((void**)&cache_s, sizeof(cache_struct));
-	// malloc members of struct
-	cudaMallocManaged((void**)&p_s->Wxh, n_hidden*n_features * sizeof(float));
-	cudaMallocManaged((void**)&p_s->Whh, n_hidden*n_hidden * sizeof(float));
-	cudaMallocManaged((void**)&p_s->Why, n_hidden*n_output_classes * sizeof(float));
-	cudaMallocManaged((void**)&p_s->bh, n_hidden * sizeof(float));
-	cudaMallocManaged((void**)&p_s->by, n_output_classes * sizeof(float));
-	int sum1 = n_features + n_features + n_output_classes;
-	cudaMallocManaged((void**)&cache_s->tmp_d_vec, sum1 * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->tmp_d_vec2, sum1 * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp1, sum1*sum1 * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp2, sum1*sum1 * sizeof(float));
-	cudaMallocManaged((void**)&cache_s->W_tmp3, sum1*sum1 * sizeof(float));
+	cudaMallocManaged((void**)&lossAllVec, (int)total_epoches*sizeof(float));
+	
+	const int M = para->sces_data_mn[0];
+	float* cache;
+	cudaMallocManaged((void**)&cache, para->num_sces[0] * 2 * sizeof(float));
+	const int Nmax =
+		gpu_max_value(para->sces_data_mn, para->num_sces[0] * 2, cache);
+	// malloc members of struct para
+	initPara(para, Nmax);
+	cudaDeviceSynchronize();
+	cout << "initPara over" << endl;
 	// ---------- assign values ------------
-	// sces_s over
-	// rnn_p_s
-	rnn_p_s->total_epoches = total_epoches;
-	rnn_p_s->n_features = n_features;
-	rnn_p_s->n_hidden = n_hidden;
-	rnn_p_s->n_output_classes = n_output_classes;
-	rnn_p_s->alpha = alpha;
-	rnn_p_s->score_min = score_min;
-	rnn_p_s->score_max = score_max;
-	// p_s, init rand val of W b
-	gpu_fill_rand(p_s->Wxh, rnn_p_s->n_hidden, rnn_p_s->n_features, -0.1f, 0.1f, 1);
-	gpu_fill_rand(p_s->Whh, rnn_p_s->n_hidden, rnn_p_s->n_hidden, -0.1f, 0.1f, 11);
-	gpu_fill_rand(p_s->Why, rnn_p_s->n_output_classes, rnn_p_s->n_hidden, -0.1f,0.1f,111);
-	gpu_fill_rand(p_s->bh, rnn_p_s->n_hidden,1, -0.1f, 0.1f, 22);
-	gpu_fill_rand(p_s->by, rnn_p_s->n_output_classes, 1, -0.1f, 0.1f, 222);
+	
+	para->total_epoches[0]		= total_epoches;
+	cout << para->total_epoches[0] << endl; // 51
+	para->n_features[0]			= n_features;
+	cout << para->n_features[0] << endl; // 17
+	para->n_hidden[0]			= n_hidden;
+	cout << para->n_hidden[0] << endl; // 50
+	para->n_output_classes[0]	= n_output_classes;
+	cout << para->n_output_classes[0] << endl;
+	para->alpha[0]				= alpha;
+	para->score_min[0]			= score_min;
+	para->score_max[0]			= score_max;
 
+	cout << "para: "
+		<< para->total_epoches[0] << "\n"
+		<< para->n_features[0] << "\n"
+		<< para->n_hidden[0] << "\n"
+		<< para->n_output_classes[0] << "\n"
+		<< para->alpha[0] << "\n"
+		<< para->score_min[0] << "\n"
+		<< para->score_max[0] << endl;
+	cout << "assign over\n";
+
+	// para, init rand val of W b
+	gpu_fill_rand(para->Wxh, para->n_hidden[0], para->n_features[0], -0.1f, 0.1f, 1);
+	gpu_fill_rand(para->Whh, para->n_hidden[0], para->n_hidden[0], -0.1f, 0.1f, 11);
+	gpu_fill_rand(para->Why, para->n_output_classes[0], para->n_hidden[0], -0.1f,0.1f,111);
+	gpu_fill_rand(para->bh, para->n_hidden[0],1, -0.1f, 0.1f, 22);
+	gpu_fill_rand(para->by, para->n_output_classes[0], 1, -0.1f, 0.1f, 222);
+
+
+
+	cout << "now train..." << endl;
 	trainMultiThread(lossAllVec, 
-		sces_s, 
-		p_s, 
-		rnn_p_s, 
-		cache_s);
+		para);
 
 	cout << " ========== train over ============== \n";
+
 	/**
 		epoches 101 : 93s
 
@@ -163,7 +165,6 @@ int main()
 	train();
 	
 	//test_gpu_fns();
-	
 	
 
 	// ============================================

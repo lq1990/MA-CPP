@@ -576,7 +576,7 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 	float* M2, int m2, int n2, float* v2, 
 	float* v3,
 	float* dest,
-	cache_struct* cache_s)
+	Para* para)
 {
 	// dest = tanh (M1*v1 + M2*v2 + v3)
 	float alpha = 1.0f;
@@ -589,7 +589,7 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 		M1, m1,
 		v1, 1,
 		&beta,
-		cache_s->W_tmp1, 1);
+		para->W_tmp1, 1);
 	cudaDeviceSynchronize();
 	// M2*v2
 	cublasSgemv(handle, // y = alpha * A*x + beta*y
@@ -599,11 +599,11 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 		M2, m2,
 		v2, 1,
 		&beta,
-		cache_s->W_tmp2, 1);
+		para->W_tmp2, 1);
 
 	cudaDeviceSynchronize();
 	// tanh add add
-	gpu_tanh_add_add(cache_s->W_tmp1, cache_s->W_tmp2, v3, m1, dest);
+	gpu_tanh_add_add(para->W_tmp1, para->W_tmp2, v3, m1, dest);
 
 }
 

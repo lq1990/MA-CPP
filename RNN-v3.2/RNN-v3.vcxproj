@@ -143,6 +143,7 @@
     <ClInclude Include="gpu_raw_fns.h" />
     <ClInclude Include="IOMatlab.h" />
     <ClInclude Include="MyClock.h" />
+    <ClInclude Include="Para.h" />
     <ClInclude Include="Script.h" />
     <ClInclude Include="stream_demo.h" />
     <ClInclude Include="struct_params.h" />
