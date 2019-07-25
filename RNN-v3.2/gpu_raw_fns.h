@@ -29,7 +29,7 @@ void gpu_mmul(cublasHandle_t handle,
 	const float* d_A,
 	const float* d_B,
 	int A_M, int A_N, int B_N,
-	float* dest);
+	float* dest, cudaStream_t stream);
 
 
 /*
@@ -59,7 +59,7 @@ void gpu_mv(cublasHandle_t handle,
 */
 void gpu_add(const float* d_x,
 	const float* d_y, int size,
-	float* dest);
+	float* dest, cudaStream_t stream);
 
 /*
 	vector-vector or matrix-matrix multiplication element-wise.
@@ -85,7 +85,8 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 	float* M1, int m1, int n1, float* v1, 
 	float* M2, int m2, int n2, float* v2, float* v3, 
 	float* dest,
-	Para* para);
+	Para* para,
+	cudaStream_t stream[]);
 
 /**
 	(1 - hs[t] .* hs[t]) .* dh
@@ -133,7 +134,7 @@ void gpu_fill(float* d_out, int size, float value);
 
 	cacheSize >= size && cacheSize=pow(2,n)
 */
-float gpu_sum(float* d_in, int size, float* cache);
+void gpu_sum(float* d_in, int size, float* cache);
 
 /*
 				exp([1,2,3,...])
@@ -144,10 +145,17 @@ float gpu_sum(float* d_in, int size, float* cache);
 */
 void gpu_softmax(float * d_in, int size, float * dest, float* cache);
 
-float gpu_max_value(float* d_in, int size, float* cache);
+/*
+	不能return，
+	可从cache的[0]取得结果
+*/
+void gpu_max_value(float* d_in, int size, float* cache);
 
 
-int gpu_max_index(float* d_in, int size, float* cache);
+/**
+	cache[0] saves index
+*/
+void gpu_max_index(float* d_in, int size, float* cache);
 
 void gpu_clip(float * d_in_out, int size, float lowMargin, float highMargin);
 
@@ -180,3 +188,11 @@ void gpu_raw_warmup();
 	找到 >= value 的最近的一个 以2为底的指数的值
 */
 int gpu_find_2exp(int value);
+
+/**
+	dy[idx1] -= 1
+*/
+void gpu_update_dy(float* d_dy, int size, int idx1);
+
+void gpu_fill_onehot(float* onehot, int size, int idx1);
+

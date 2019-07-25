@@ -27,7 +27,7 @@ vector<SceStruct> read_write(const char* fileName)
 {
 	vector<SceStruct> vec;
 
-	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/";
+	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
 	const char* tail = ".mat";
 	char path[1000];
 	strcpy_s(path, dir);
@@ -263,9 +263,10 @@ void train_rnn()
 		}
 
 		cout << "======================================================================================" << endl << endl;
+
+		matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 	}
 
-	matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 	delete opt;
 }
 
@@ -298,7 +299,7 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	vector<SceStruct>::iterator it; it = listStruct.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 501;
+	MyParams::total_epoches = 21;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
@@ -311,10 +312,12 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	MyParams::by = arma::zeros(MyParams::n_output_classes, 1);
 
 	RNN rnn = RNN();
-	int n_threads = 8; // 线程数目
+	int n_threads = 1; // 线程数目
 
 	rnn.trainMultiThread(listStruct, opt, n_threads, lambda); // train RNN
 	rnn.saveParams();
+
+	
 
 	delete opt;
 }
@@ -343,6 +346,9 @@ int main()
 	// lambda: 0.19, use listStructTrain,		train/cv/test: 0.77 / 0.43 / 0.14
 	// lambda: 0.19, use listStructTrainCV,		train/cv/test: 0.68 / 0.71 / 0.286 , OK
 	
+	// epoches: 31, threads: 8  => dt 42.7s
+	// epoches: 21, threads: 1  => dt 73.0s
+
 	// ======================== try =======================
 
 	// 比较char

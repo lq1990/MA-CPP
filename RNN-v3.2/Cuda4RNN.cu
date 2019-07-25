@@ -5,14 +5,14 @@ void trainMultiThread(
 	Para* para
 )
 {
-	int num_sces = para->num_sces[0];
-	int total_epoches = para->total_epoches[0];
-	int n_features = para->n_features[0];
-	int n_hidden = para->n_hidden[0];
-	int n_output_classes = para->n_output_classes[0];
-	float alpha = para->alpha[0];
-	float score_min = para->score_min[0];
-	float score_max = para->score_max[0];
+	int num_sces			= para->h_num_sces[0];
+	int total_epoches		= para->h_total_epoches[0];
+	int n_features			= para->h_n_features[0];
+	int n_hidden			= para->h_n_hidden[0];
+	int n_output_classes	= para->h_n_output_classes[0];
+	float alpha				= para->h_alpha[0];
+	float score_min			= para->h_score_min[0];
+	float score_max			= para->h_score_max[0];
 	{
 		cout << "train begins" << endl << "alpha: " << alpha << endl;
 		cout << "total_epoches: " << total_epoches << endl 
@@ -23,8 +23,15 @@ void trainMultiThread(
 			<< "score_max: " << score_max << endl;
 	}
 
+	const int n_streams = 10;
+	cudaStream_t stream[n_streams];
+	for (int i = 0; i < n_streams; i++)
+	{
+		cudaStreamCreate(&stream[i]);
+	}
 	cublasHandle_t handle;
 	cublasCreate(&handle);
+
 
 	// 先用 标准SGD优化，使用1个cpu线程
 	float* loss_one_epoch;
@@ -37,39 +44,45 @@ void trainMultiThread(
 	cudaMalloc((void**)&true_false, total_epoches * sizeof(float));
 	cudaMalloc((void**)&accuracy_each_epoch, total_epoches * sizeof(float));
 
+	int total_size = para->h_total_size[0];
 	int Nmax = para->d_Nmax[0];
-	int M = para->sces_data_mn[0];
-	float* sce_item_data;
-	cudaMalloc((void**)&sce_item_data, M*Nmax*sizeof(float));
+	int M = para->h_sces_data_mn[0];
+	float* sce_item_data; // 给此分配和 scedata一样的大小
+	cudaMalloc((void**)&sce_item_data, total_size*sizeof(float));
 	float* hprev;
 	cudaMalloc((void**)&hprev, n_hidden * sizeof(float));
 
-	for (int i = 0; i < total_epoches/100; i++)
+	// total_epoches
+	for (int i = 0; i < 21; i++)
 	{
+
 		/**
 			loop over each scenario
 		*/
-		for(int item = 0; item < num_sces/5; item++)
+		for(int item = 0; item < num_sces; item++)
 		{
-			// ---------- 先取出一个 场景数据 训练 RNN ------------
-			float id0 = para->sces_id_score[item*2 + 0]; 
-			float score0 = para->sces_id_score[item*2 + 1];
-			int sce0_M = para->sces_data_mn[item * 2 + 0]; 
-			int sce0_N = para->sces_data_mn[item * 2 + 1];
 
-			int beginIdx = para->sces_data_idx_begin[item];
-			int endIdx = para->sces_data_idx_begin[item + 1];
-			gpu_copy(sce_item_data, 0, para->sces_data, beginIdx, endIdx);
+			// ---------- 先取出一个 场景数据 训练 RNN ------------
+			float id0		= para->h_sces_id_score[item*2 + 0]; 
+			float score0	= para->h_sces_id_score[item*2 + 1];
+			int sce0_M		= para->h_sces_data_mn[item * 2 + 0]; 
+			int sce0_N		= para->h_sces_data_mn[item * 2 + 1];
+
+			int beginIdx	= para->h_sces_data_idx_begin[item];
+			int endIdx		= para->h_sces_data_idx_begin[item + 1];
+			//gpu_copy(sce_item_data, 0, para->d_sces_data, beginIdx, endIdx);
+			sce_item_data = para->d_sces_data + beginIdx;
+			// 使用浅拷贝
 
 			//gpu_clear_arr(true_false, total_epoches);//true_false.clear();
 			//gpu_clear_arr(loss_one_epoch, total_epoches);//loss_one_epoch.clear();
 
 			// set dP 0
-			gpu_fill(para->dWxh, n_hidden * n_features, 0.f);
-			gpu_fill(para->dWhh, n_hidden * n_hidden, 0.f);
-			gpu_fill(para->dWhy, n_hidden * n_output_classes, 0.f);
-			gpu_fill(para->dbh,  n_hidden, 0.f);
-			gpu_fill(para->dby,  n_output_classes, 0.f);
+			gpu_fill(para->d_dWxh, n_hidden * n_features, 0.f);
+			gpu_fill(para->d_dWhh, n_hidden * n_hidden, 0.f);
+			gpu_fill(para->d_dWhy, n_hidden * n_output_classes, 0.f);
+			gpu_fill(para->d_dbh,  n_hidden, 0.f);
+			gpu_fill(para->d_dby,  n_output_classes, 0.f);
 
 			gpu_fill(hprev, n_hidden, 0.f);
 		
@@ -78,17 +91,17 @@ void trainMultiThread(
 				score0, 
 				hprev, true_false, 
 				loss,
-				para);
+				para,
+				stream);
 
-			cout << "epoch: " << i << ", #sce: "<< item << ", loss: " << loss << endl;
+			if (i % 10 == 0)
+			{
+				cout << "epoch: " << i << ", loss: " << loss << endl;
+			}
 
 			sgd(handle, para);
 		}
-
-		/*if (i % 5 == 0)
-		{
-			
-		}*/
+		
 	}
 
 	// lossVec mean, accu
@@ -105,6 +118,11 @@ void trainMultiThread(
 		cout << "free over in train fn \n";
 	}
 	cublasDestroy(handle);
+
+	for (int i = 0; i < n_streams; i++)
+	{
+		cudaStreamDestroy(stream[i]);
+	}
 }
 
 
@@ -124,221 +142,266 @@ void lossFun(
 	float* hprev,
 	float* true_false,
 	float& loss,
-	Para* para
+	Para* para,
+	cudaStream_t stream[]
 )
 {
-	int total_epoches = para->total_epoches[0];
-	int n_features = para->n_features[0];
-	int n_hidden = para->n_hidden[0];
-	int n_output_classes = para->n_output_classes[0];
-	float alpha = para->alpha[0];
-	float score_min = para->score_min[0];
-	float score_max = para->score_max[0];
-	int Nmax = para->Nmax[0]; // 所有场景的N中最大的数值
+	int total_epoches		= para->h_total_epoches[0];
+	int n_features			= para->h_n_features[0];
+	int n_hidden			= para->h_n_hidden[0];
+	int n_output_classes	= para->h_n_output_classes[0];
+	float alpha				= para->h_alpha[0];
+	float score_min			= para->h_score_min[0];
+	float score_max			= para->h_score_max[0];
+	int Nmax				= para->d_Nmax[0]; // 所有场景的N中最大的数值
 
 	int idx1_targets = -1;
-	float* targets = score2onehot(score, 
+	score2onehot(score,
 		idx1_targets, n_output_classes, score_min, score_max);
 
 	// hs[-1] = hprev;
-	gpu_set_col(para->hs, n_hidden, Nmax, -1+1, hprev);
+	gpu_set_col(para->d_hs, n_hidden, Nmax, -1+1, hprev);
 	loss = 0.f;
 
 	// ---------------- forward pass -------------
 	for (int t = 0; t < N; t++)
 	{
-		// ----- xs[t] = inputs.row(t).t(); -----
-		gpu_get_col(inputs, M, N, t, para->tmp_d_vec);  // tmp saves xs[t]
-		gpu_set_col(para->xs, n_features, Nmax, t, para->tmp_d_vec);
+		// ----- xs[t] = inputs.row(t).t(); ----- 因为xs中存储的都是 inputs数据，不必再copy一份
+		//gpu_get_col(inputs, M, N, t, para->d_tmp_d_vec);  // tmp saves xs[t]
+		//gpu_set_col(para->d_xs, n_features, Nmax, t, para->d_tmp_d_vec);
 
 		// --- hs[t] = arma::tanh(Wxh * xs[t] + Whh*hs[t-1] + bh); ----
 		// Wxh * xs[t]
-		/*gpu_mv(handle, para->Wxh, para->tmp_d_vec, n_hidden, n_features, 
-			para->W_tmp1); */// W_tmp1 saves Wxh*xs[t]
 		// hs[t-1]
-		gpu_get_col(para->hs, n_hidden, Nmax, t - 1 + 1, 
-			para->tmp_d_vec2); // tmp2 saves hs[t-1]
+		
+		/*gpu_get_col(para->d_hs, n_hidden, Nmax, t - 1 + 1, 
+			para->d_tmp_d_vec2);*/ // tmp2 saves hs[t-1]
 		// Whh * hs[t-1]
-		/*gpu_mv(handle, para->Whh, para->tmp_d_vec, n_hidden, n_hidden,
-			para->W_tmp2);*/ // W_tmp2 saves Whh*hs[t-1]
-		/*gpu_tanh_add_add(para->W_tmp1, para->W_tmp2, para->bh, n_hidden, 
-			para->tmp_d_vec);*/ // tmp saves tanh_add_add
+		/*gpu_mv(handle, para->Whh, para->d_tmp_d_vec, n_hidden, n_hidden,
+			para->d_W_tmp2);*/ // W_tmp2 saves Whh*hs[t-1]
+		/*gpu_tanh_add_add(para->d_W_tmp1, para->d_W_tmp2, para->bh, n_hidden, 
+			para->d_tmp_d_vec);*/ // tmp saves tanh_add_add
 		gpu_tanh_Mv_add_Mv_add_v(handle,
-			para->Wxh, n_hidden, n_features, para->tmp_d_vec,
-			para->Whh, n_hidden, n_hidden, para->tmp_d_vec2, para->bh,
-			para->W_tmp3, para);
-		gpu_set_col(para->hs, n_hidden, Nmax, t + 1, para->W_tmp3);
+			para->d_Wxh, n_hidden, n_features, 
+			inputs + t*M, // xs[t]
+			para->d_Whh, n_hidden, n_hidden, 
+			para->d_hs + n_hidden*(t-1+1), // hs[t-1]
+			para->d_bh,
+			para->d_hs + n_hidden*(t+1), // dest => hs[t]
+			para,
+			stream);
+		//gpu_set_col(para->d_hs, n_hidden, Nmax, t + 1, para->d_W_tmp3);
+
 		if (t == N-1)
 		{
 			// ys[t] = Why * hs[t] + by;
-			gpu_get_col(para->hs, n_hidden, Nmax, t + 1, para->tmp_d_vec);
-			gpu_mv(handle, para->Why, para->tmp_d_vec, n_output_classes, n_hidden, 
-				para->W_tmp1); // Why * hs[t]
-			gpu_add(para->W_tmp1, para->by, n_output_classes, para->tmp_d_vec);
-			gpu_set_col(para->ys, n_output_classes, Nmax, t, para->tmp_d_vec);
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t + 1, 
+				para->d_tmp_d_vec);*/ // tmp saves hs[t]
+			gpu_mv(handle, para->d_Why, 
+				para->d_hs + n_hidden*(t+1), // hs[t]
+				n_output_classes, n_hidden, 
+				para->d_W_tmp1); // Why * hs[t]
+			gpu_add(para->d_W_tmp1, para->d_by, n_output_classes, 
+				para->d_ys + n_output_classes*t, stream[0]); // tmp saves ys[t]
+			cudaStreamSynchronize(stream[0]);
+			//gpu_set_col(para->d_ys, n_output_classes, Nmax, t, para->d_tmp_d_vec);
 
 			// ps[t] = softmax(ys[t])
 			int sum1 = n_features + n_features + n_output_classes;
-			gpu_clear_arr(para->W_tmp1, sum1*sum1);
-			gpu_get_col(para->ys, n_output_classes, Nmax, t, para->tmp_d_vec);
-			gpu_softmax(para->tmp_d_vec, n_output_classes, 
-				para->W_tmp1, // dest
-				para->W_tmp2); // cache
-			gpu_set_col(para->ps, n_output_classes, Nmax, t, 
-				para->W_tmp1); // W_tmp1 = softmax = ps[t]
+			gpu_clear_arr(para->d_W_tmp1, sum1*sum1);
+			gpu_get_col(para->d_ys, n_output_classes, Nmax, t, para->d_tmp_d_vec);
+
+			gpu_softmax(para->d_tmp_d_vec, n_output_classes, 
+				para->d_W_tmp1, // dest => ps[t]
+				para->d_W_tmp2); // cache
+			gpu_set_col(para->d_ps, n_output_classes, Nmax, t, 
+				para->d_W_tmp1); // d_W_tmp1 = softmax = ps[t]
 			// loss += -log(ps[t](idx1));
-			float val = para->W_tmp1[idx1_targets];
-			loss += -logf(val);
+
+			/*float val = para->d_W_tmp1[idx1_targets];
+			loss += -logf(val);*/
+			cudaMemcpy(para->h_cache, para->d_W_tmp1, sum1*sum1 * sizeof(float), cudaMemcpyDeviceToHost);
+			float val = para->h_cache[idx1_targets];
+			loss = -logf(val);
 
 			// idx_pred
-			int idx_max_ps = gpu_max_index(para->W_tmp1, sum1*sum1, para->W_tmp2);
+			gpu_max_index(para->d_W_tmp1, sum1*sum1, para->d_W_tmp2);
 
 		}
 
 	}
 
 	// ---------------- BPTT -------------
-	gpu_fill(para->dWxh, n_hidden*n_features, 0.f);
-	gpu_fill(para->dWhh, n_hidden*n_hidden, 0.f);
-	gpu_fill(para->dWhy, n_hidden*n_output_classes, 0.f);
-	gpu_fill(para->dbh, n_hidden, 0.f);
-	gpu_fill(para->dby, n_output_classes, 0.f);
-	gpu_fill(para->dhnext, n_hidden, 0.f); // init dhnext = 0
+	gpu_fill(para->d_dWxh, n_hidden*n_features, 0.f);
+	gpu_fill(para->d_dWhh, n_hidden*n_hidden, 0.f);
+	gpu_fill(para->d_dWhy, n_hidden*n_output_classes, 0.f);
+	gpu_fill(para->d_dbh, n_hidden, 0.f);
+	gpu_fill(para->d_dby, n_output_classes, 0.f);
+	gpu_fill(para->d_dhnext, n_hidden, 0.f); // init dhnext = 0
 
 	for (int t = N-1; t >= 0; t--)
 	{
+
 		if (t == N-1)
 		{
 			// dy = ps[t];
-			gpu_get_col(para->ps, n_output_classes, Nmax, t, para->dy);
+			gpu_get_col(para->d_ps, n_output_classes, Nmax, t, para->d_dy);
+
 			// uvec fuvec = arma::find(targets == 1);
 			// dy[fuvec(0)] -= 1;
-			para->dy[idx1_targets] -= 1.f;
-			// dWhy += dy * hs[t].t(); /// dy(10,1) * hs[t].t()(1,50) = (10,50)
-			gpu_get_col(para->hs, n_hidden, Nmax, t + 1, 
-				para->tmp_d_vec); // tmp saves hs[t]'
-			gpu_mmul(handle, para->dy, para->tmp_d_vec, n_output_classes, 1, n_hidden, 
-				para->W_tmp1); // Wtmp1 saves dy*hs[t]'
-			gpu_add(para->dWhy, para->W_tmp1, n_output_classes*n_hidden, 
-				para->dWhy);
-			// dby += dy;
-			gpu_add(para->dby, para->dy, n_output_classes, para->dby);
+			// ??? para->d_dy[idx1_targets] -= 1.f;
+			gpu_update_dy(para->d_dy, n_output_classes, idx1_targets);
 
+			// dWhy += dy * hs[t].t(); /// dy(10,1) * hs[t].t()(1,50) = (10,50)
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t + 1, 
+				para->d_tmp_d_vec);*/ // tmp saves hs[t]'
+			gpu_mmul(handle, para->d_dy, 
+				para->d_hs+n_hidden*(t+1), // hs[t]'
+				n_output_classes, 1, n_hidden, 
+				para->d_W_tmp1, stream[0]); // Wtmp1 saves dy*hs[t]'
+			gpu_add(para->d_dWhy, para->d_W_tmp1, n_output_classes*n_hidden, 
+				para->d_dWhy, stream[0]);
+
+			// dby += dy;
+			gpu_add(para->d_dby, para->d_dy, n_output_classes, para->d_dby, stream[1]);
 
 			// dh = Why.t() * dy + dhnext;
-			gpu_mv(handle, para->Why, para->dy, n_output_classes, n_hidden,
-				para->W_tmp1, true); // Wtmp1 saves Why' * dy
-			gpu_add(para->W_tmp1, para->dhnext, n_hidden, para->dh);
+			gpu_mv(handle, para->d_Why, para->d_dy, n_output_classes, n_hidden,
+				para->d_W_tmp1, true); // Wtmp1 saves Why' * dy
+			gpu_add(para->d_W_tmp1, para->d_dhnext, n_hidden, para->d_dh, stream[2]);
+
+			cudaStreamSynchronize(stream[2]);
 
 			// dhraw = (1 - hs[t] % hs[t]) % dh; // mul elemwise
-			gpu_get_col(para->hs, n_hidden, Nmax, t + 1, 
-				para->tmp_d_vec); // tmp saves hs[t]
-			gpu_tanh_der_hs_dh(para->tmp_d_vec, para->dh, n_hidden, 
-				para->dhraw);
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t + 1, 
+				para->d_tmp_d_vec); */// tmp saves hs[t]
+			gpu_tanh_der_hs_dh(para->d_hs + n_hidden*(t+1), // hs[t]
+				para->d_dh, n_hidden, 
+				para->d_dhraw);
 
 			// dbh += dhraw;
-			gpu_add(para->dbh, para->dhraw, n_hidden, para->dbh);
+			gpu_add(para->d_dbh, para->d_dhraw, n_hidden, para->d_dbh, stream[3]);
 
 			// dWxh += dhraw * xs[t].t(); // 惩罚项，只需要在loop中 加一次
-			gpu_get_col(para->xs, n_features, Nmax, t, 
-				para->tmp_d_vec); // tmp saves xs[t]
-			gpu_mmul(handle, para->dhraw, para->tmp_d_vec, n_hidden, 1, n_features,
-				para->W_tmp1); // Wtmp1 saves dhraw*xs[t]'
-			gpu_add(para->dWxh, para->W_tmp1, n_hidden*n_features, 
-				para->dWxh);
+			/*gpu_get_col(para->d_xs, n_features, Nmax, t, 
+				para->d_tmp_d_vec);*/ // tmp saves xs[t]
+			gpu_mmul(handle, para->d_dhraw, 
+				inputs + t*M, // xs[t]
+				n_hidden, 1, n_features,
+				para->d_W_tmp1, stream[4]); // Wtmp1 saves dhraw*xs[t]'
+			gpu_add(para->d_dWxh, para->d_W_tmp1, n_hidden*n_features, 
+				para->d_dWxh, stream[4]);
 
 			// dWhh += dhraw * hs[t - 1].t();
-			gpu_get_col(para->hs, n_hidden, Nmax, t-1+1,
-				para->tmp_d_vec); // tmp saves hs[t-1]
-			gpu_mmul(handle, para->dhraw, para->tmp_d_vec, n_hidden, 1, n_hidden,
-				para->W_tmp1); // Wtmp1 saves dhraw*hs[t-1]'
-			gpu_add(para->dWhh, para->W_tmp1, n_hidden*n_hidden,
-				para->dWhh);
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t-1+1,
+				para->d_tmp_d_vec);*/ // tmp saves hs[t-1]
+			gpu_mmul(handle, para->d_dhraw, 
+				para->d_hs + n_hidden * (t-1+1), // hs[t-1]
+				n_hidden, 1, n_hidden,
+				para->d_W_tmp1, stream[5]); // Wtmp1 saves dhraw*hs[t-1]'
+			gpu_add(para->d_dWhh, para->d_W_tmp1, n_hidden*n_hidden,
+				para->d_dWhh, stream[5]);
 
 			// dhnext = Whh.t() * dhraw;
-			gpu_mv(handle, para->Whh, para->dhraw, n_hidden, n_hidden, 
-				para->dhnext, true);
+			gpu_mv(handle, para->d_Whh, para->d_dhraw, n_hidden, n_hidden, 
+				para->d_dhnext, true);
+
+			for (int i = 0; i <= 5; i++)
+			{
+				cudaStreamSynchronize(stream[i]);
+			}
 
 		}
 		else
 		{
 			// dh = dhnext;
-			para->dh = para->dhnext;
+			para->d_dh = para->d_dhnext;
 
 			// dhraw = (1 - hs[t] % hs[t]) % dh; // mul elemwise
-			gpu_get_col(para->hs, n_hidden, Nmax, t + 1,
-				para->tmp_d_vec); // tmp saves hs[t]
-			gpu_tanh_der_hs_dh(para->tmp_d_vec, para->dh, n_hidden,
-				para->dhraw);
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t + 1,
+				para->d_tmp_d_vec); */// tmp saves hs[t]
 
+			gpu_tanh_der_hs_dh(para->d_hs + n_hidden*(t+1), // hs[t]
+				para->d_dh, n_hidden,
+				para->d_dhraw);
+
+			// 可并行的有： dbh, dWxh, dWhh, dhnext
 			// dbh += dhraw;
-			gpu_add(para->dbh, para->dhraw, n_hidden, para->dbh);
+			gpu_add(para->d_dbh, para->d_dhraw, n_hidden, para->d_dbh, stream[0]);
 
 			// dWxh += dhraw * xs[t].t(); // 惩罚项，只需要在loop中 加一次
-			gpu_get_col(para->xs, n_features, Nmax, t,
-				para->tmp_d_vec); // tmp saves xs[t]
-			gpu_mmul(handle, para->dhraw, para->tmp_d_vec, n_hidden, 1, n_features,
-				para->W_tmp1); // Wtmp1 saves dhraw*xs[t]'
-			gpu_add(para->dWxh, para->W_tmp1, n_hidden*n_features,
-				para->dWxh);
+			/*gpu_get_col(para->d_xs, n_features, Nmax, t,
+				para->d_tmp_d_vec);*/ // tmp saves xs[t]
+			gpu_mmul(handle, para->d_dhraw, 
+				inputs + t*M, // xs[t]
+				n_hidden, 1, n_features,
+				para->d_W_tmp1, stream[1]); // Wtmp1 saves dhraw*xs[t]'
+			gpu_add(para->d_dWxh, para->d_W_tmp1, n_hidden*n_features,
+				para->d_dWxh, stream[1]);
 
 			// dWhh += dhraw * hs[t - 1].t();
-			gpu_get_col(para->hs, n_hidden, Nmax, t - 1 + 1,
-				para->tmp_d_vec); // tmp saves hs[t-1]
-			gpu_mmul(handle, para->dhraw, para->tmp_d_vec, n_hidden, 1, n_hidden,
-				para->W_tmp1); // Wtmp1 saves dhraw*hs[t-1]'
-			gpu_add(para->dWhh, para->W_tmp1, n_hidden*n_hidden,
-				para->dWhh);
+			/*gpu_get_col(para->d_hs, n_hidden, Nmax, t - 1 + 1,
+				para->d_tmp_d_vec);*/ // tmp saves hs[t-1]
+			gpu_mmul(handle, para->d_dhraw, 
+				para->d_hs + n_hidden*(t-1+1), // hs[t-1]
+				n_hidden, 1, n_hidden,
+				para->d_W_tmp2, stream[2]); // Wtmp1 saves dhraw*hs[t-1]'
+			gpu_add(para->d_dWhh, para->d_W_tmp2, n_hidden*n_hidden,
+				para->d_dWhh, stream[2]);
 
 			// dhnext = Whh.t() * dhraw;
-			gpu_mv(handle, para->Whh, para->dhraw, n_hidden, n_hidden,
-				para->dhnext, true);
+			gpu_mv(handle, para->d_Whh, para->d_dhraw, n_hidden, n_hidden,
+				para->d_dhnext, true);
+
+			cudaStreamSynchronize(stream[0]);
+			cudaStreamSynchronize(stream[1]);
+			cudaStreamSynchronize(stream[2]);
 
 		}
 
 	}
 
 	// clip
-	gpu_clip(para->dWxh, n_hidden*n_features,-5.f, 5.f);
-	gpu_clip(para->dWhh, n_hidden*n_hidden,-5.f, 5.f);
-	gpu_clip(para->dWhy, n_hidden*n_output_classes,-5.f, 5.f);
-	gpu_clip(para->dbh, n_hidden,-5.f, 5.f);
-	gpu_clip(para->dby, n_output_classes,-5.f, 5.f);
+	gpu_clip(para->d_dWxh, n_hidden*n_features,-5.f, 5.f);
+	gpu_clip(para->d_dWhh, n_hidden*n_hidden,-5.f, 5.f);
+	gpu_clip(para->d_dWhy, n_hidden*n_output_classes,-5.f, 5.f);
+	gpu_clip(para->d_dbh, n_hidden,-5.f, 5.f);
+	gpu_clip(para->d_dby, n_output_classes,-5.f, 5.f);
 
 }
 
 
-float * score2onehot(float score, 
+void score2onehot(float score, 
 	int & idx1_targets, int n_output_classes, float score_min, float score_max)
 {
 	float part = 1.0f / n_output_classes;
-	float pos = (score - score_min) / (score_max - score_min + pow(10, -8));
+	float pos = (score - score_min) / (score_max - score_min + pow(10, -4));
 
 	idx1_targets = floor(pos / part);
 
-	float* onehot;
-	cudaMallocManaged((void**)&onehot, n_output_classes * sizeof(float));
-	// init onehot with 0
-	gpu_fill(onehot, n_output_classes, 0.f);
-	// set 1
-	onehot[idx1_targets] = 1.f;
+	//// init onehot with 0
+	//gpu_fill(onehot, n_output_classes, 0.f);
+	//// set 1
+	//onehot[idx1_targets] = 1.f;
 
-	return onehot;
+	//gpu_fill_onehot(onehot, n_output_classes, idx1_targets);
+
+	return;
 }
 
 
 void sgd(cublasHandle_t handle, Para* para)
 {
-	int n_features = para->n_features[0];
-	int n_hidden = para->n_hidden[0];
-	int n_output_classes = para->n_output_classes[0];
-	float alpha = para->alpha[0];
+	int n_features			= para->h_n_features[0];
+	int n_hidden			= para->h_n_hidden[0];
+	int n_output_classes	= para->h_n_output_classes[0];
+	float alpha				= para->h_alpha[0];
 
-	sgd0(handle, para->Wxh, para->dWxh, n_hidden*n_features, alpha);
-	sgd0(handle, para->Whh, para->dWhh, n_hidden*n_hidden, alpha);
-	sgd0(handle, para->Why, para->dWhy, n_hidden*n_output_classes, alpha);
-	sgd0(handle, para->bh,  para->dbh, n_hidden, alpha);
-	sgd0(handle, para->by,  para->dby, n_output_classes, alpha);
+	sgd0(handle, para->d_Wxh, para->d_dWxh, n_hidden*n_features, alpha);
+	sgd0(handle, para->d_Whh, para->d_dWhh, n_hidden*n_hidden, alpha);
+	sgd0(handle, para->d_Why, para->d_dWhy, n_hidden*n_output_classes, alpha);
+	sgd0(handle, para->d_bh,  para->d_dbh, n_hidden, alpha);
+	sgd0(handle, para->d_by,  para->d_dby, n_output_classes, alpha);
 }
 
 
@@ -588,6 +651,8 @@ void initPara(Para * para, int Nmax)
 	cudaMalloc((void**)&para->d_W_tmp1, sum1*sum1 * sizeof(float));
 	cudaMalloc((void**)&para->d_W_tmp2, sum1*sum1 * sizeof(float));
 	cudaMalloc((void**)&para->d_W_tmp3, sum1*sum1 * sizeof(float));
+
+	cudaMallocHost((void**)&para->h_cache, sum1*sum1 * sizeof(float));
 	
 
 }

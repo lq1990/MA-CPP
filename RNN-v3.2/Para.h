@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-const float total_epoches = 51;
+const float total_epoches = 501;
 const float n_features = 17;
 const float n_hidden = 50;
 const float n_output_classes = 10;
@@ -83,5 +83,7 @@ typedef struct Para
 	float* d_W_tmp1;
 	float* d_W_tmp2;
 	float* d_W_tmp3;
+
+	float* h_cache; // 需要时，将dev cache数据cpy到hcache
 
 };

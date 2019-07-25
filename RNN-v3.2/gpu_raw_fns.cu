@@ -152,13 +152,13 @@ __global__ void exp_kernel(float* d_in, int size, float* dest)
 	}
 }
 
-__global__ void divide_kernel(float* d_in, int size, float den, float* dest)
+__global__ void divide_kernel(float* d_in, int size, float* den, float* dest)
 {
 	// (each elem of d_in) / den
 	int tid = get_tid();
 	if (tid < size)
 	{
-		float val = d_in[tid] / (den + powf(10, -8)); // avoid /0
+		float val = d_in[tid] / (den[0] + powf(10, -8)); // avoid /0
 		dest[tid] = val;
 	}
 
@@ -195,15 +195,16 @@ __global__ void find_max_val_kernel(float* d_in, int size, float* cache)
 
 }
 
-__global__ void find_max_idx_kernel(float* d_in, int size, float maxVal,
+__global__ void find_max_idx_kernel(float* d_in, int size, float* maxVal,
 	float* cache)
 {
 	int tid = get_tid();
+	float maxV = maxVal[0];
 
 	if (tid < size)
 	{
 		float inVal = d_in[tid];
-		if (inVal == maxVal)
+		if (inVal == maxV)
 		{
 			cache[0] = tid;
 		}
@@ -245,6 +246,8 @@ void gpu_get_col(float * d_A, int M, int N, int col, float* dest)
 
 void gpu_set_col(float * d_A, int M, int N, int col, float * values)
 {
+	// 设置为 浅拷贝 ???
+
 	int setBegin = col * M;
 	int setEnd = (col + 1)*M;
 
@@ -278,7 +281,7 @@ void gpu_fill(float * d_out, int size, float value)
 	cudaDeviceSynchronize();
 }
 
-float gpu_sum(float* d_in, int size, float* cache)
+void gpu_sum(float* d_in, int size, float* cache)
 {
 	// 需要确保 d_in 的size <= 512 ^ 2
 
@@ -291,14 +294,16 @@ float gpu_sum(float* d_in, int size, float* cache)
 	// 对cache中数据继续sum。cache中存储了上一步blocks中sum的结果
 	if (gs == 1)
 	{
-		return cache[0];
+		//return cache[0]; // cache[0] saves sum
+		return;
 	}
 	else
 	{
 		sum_kernel << <1, bs, bs * sizeof(float) >> > (cache, gs, cache);
 		cudaDeviceSynchronize(); // kernel之后一定记得加同步
 
-		return cache[0];
+		//return cache[0];
+		return;
 	}
 	
 }
@@ -316,16 +321,17 @@ void gpu_softmax(float * d_in, int size, float * dest, float* cache)
 	cudaDeviceSynchronize();
 
 	// step 2. sumVal = sum(dest)
-	float sumExp = gpu_sum(dest, size, cache);
+	//float sumExp;
+	gpu_sum(dest, size, cache); // sumVal = cache[0]
 
 	// step 3. dest = dest / sumVal
-	divide_kernel<<<gs, bs>>>(dest, size, sumExp, dest);
+	divide_kernel<<<gs, bs>>>(dest, size, cache, dest);
 
 	cudaDeviceSynchronize();
 }
 
 
-float gpu_max_value(float * d_in, int size, float* cache)
+void gpu_max_value(float * d_in, int size, float* cache)
 {
 	// 需要确保 d_in 的size less equal than 512 ^ 2
 	// gridsize, blocksize
@@ -337,28 +343,33 @@ float gpu_max_value(float * d_in, int size, float* cache)
 	// 对cache中数据继续sum。cache中存储了上一步blocks中sum的结果
 	if (gs == 1)
 	{
-		return cache[0];
+		//return cache[0];
+		return;
 	}
 	else
 	{
 		find_max_val_kernel << <1, bs, bs * sizeof(float) >> > (cache, gs, cache);
 		cudaDeviceSynchronize(); // kernel之后一定记得加同步
 
-		return cache[0];
+		//return cache[0];
+		return;
 	}
 }
 
 
-int gpu_max_index(float * d_in, int size, float* cache)
+void gpu_max_index(float * d_in, int size, float* cache)
 {
-	float maxVal = gpu_max_value(d_in, size, cache);
+	//float maxVal;
+	gpu_max_value(d_in, size, cache);
+	//maxVal = cache[0];
 
 	int bs = 512;
 	int gs = (size + bs - 1) / bs;
-	find_max_idx_kernel << <gs, bs >> > (d_in, size, maxVal, cache);
+	find_max_idx_kernel << <gs, bs >> > (d_in, size, cache, cache);
 
 	cudaDeviceSynchronize();
-	return cache[0];
+	//return cache[0]; 
+	return;
 }
 
 void gpu_clip(float * d_in_out, int size, float lowMargin, float highMargin)
@@ -403,50 +414,63 @@ void gpu_clear_arr(float * d_arr, int size)
 
 void printToHost(float * d_A, int n_rows, int n_cols, string title)
 {
-	/*float* h_A;
+	float* h_A;
 	h_A = (float*)malloc(n_rows*n_cols * sizeof(float));
 	cudaMemcpy(h_A, d_A, 
-		n_rows*n_cols * sizeof(float), cudaMemcpyDeviceToHost);*/
+		n_rows*n_cols * sizeof(float), cudaMemcpyDeviceToHost);
 
 	cout << title << endl;
 	for (int i = 0; i < n_rows; i++)
 	{
 		for (int j = 0; j < n_cols; j++)
 		{
-			cout << d_A[j*n_rows + i] << "  ";
+			cout << h_A[j*n_rows + i] << "  ";
 		}
 		cout << endl;
 	}
 
 	cout << endl;
-	//free(h_A);
+	free(h_A);
 }
 
 void printLast(float * d_x, int size, int numElems, string title)
 {
+	float* h_x;
+	cudaMallocHost((void**)&h_x, size * sizeof(float));
+	cudaMemcpy(h_x, d_x, size * sizeof(float), cudaMemcpyDeviceToHost);
+
 	cout << " --------- " << title << "---------" << endl;
 	int begin = size - numElems;
 	int end = size - 1;
 	for (int i = begin; i <= end; i++)
 	{
-		cout << d_x[i] << "  ";
+		cout << h_x[i] << "  ";
 	}
 	cout << endl;
+
+	cudaFreeHost(h_x);
 }
 
 void printToHost(int * d_A, int n_rows, int n_cols, string title)
 {
+	int size = n_rows * n_cols;
+	float* h_A;
+	cudaMallocHost((void**)&h_A, size * sizeof(float));
+	cudaMemcpy(h_A, d_A, size * sizeof(float), cudaMemcpyDeviceToHost);
+
 	cout << title << endl;
 	for (int i = 0; i < n_rows; i++)
 	{
 		for (int j = 0; j < n_cols; j++)
 		{
-			cout << d_A[j*n_rows + i] << "  ";
+			cout << h_A[j*n_rows + i] << "  ";
 		}
 		cout << endl;
 	}
 
 	cout << endl;
+
+	cudaFreeHost(h_A);
 }
 
 
@@ -465,15 +489,68 @@ int gpu_find_2exp(int value)
 	return pow(2, a);
 }
 
+__global__ void update_dy_kernel(float * d_dy, int size, int idx1)
+{
+	int tid = get_tid();
+	
+	if (tid == idx1)
+	{
+		d_dy[tid] -= 1.f;
+	}
+	
+}
+
+void gpu_update_dy(float * d_dy, int size, int idx1)
+{
+	int bs = 256;
+	int s = ceil(sqrt( (size + bs - 1.) / bs ));
+	dim3 gs = dim3(s, s);
+	update_dy_kernel << <gs, bs >> > (d_dy, size, idx1);
+
+	cudaDeviceSynchronize();
+}
+
+__global__ void onehot_kernel(float * onehot, int size, int idx1)
+{
+	int tid = get_tid();
+
+	if (tid < size)
+	{
+		if (tid == idx1)
+		{
+			onehot[tid] = 1.f;
+		}
+		else
+		{
+			onehot[tid] = 0.f;
+		}
+
+	}
+
+}
+
+void gpu_fill_onehot(float * onehot, int size, int idx1)
+{
+	int bs = 256;
+	int s = ceil(sqrt((size + bs - 1.) / bs));
+	dim3 gs = dim3(s, s);
+
+	onehot_kernel << <gs, bs >> > (onehot, size, idx1);
+
+	cudaDeviceSynchronize();
+
+}
+
 void gpu_mmul(cublasHandle_t handle, 
 	const float * d_A, 
 	const float * d_B, 
 	int A_M, int A_N, 
-	int B_N, float * dest)
+	int B_N, float * dest, cudaStream_t stream)
 {
 	// dest = alpha * A * B + beta * dest
 	float alpha = 1.f;
 	float beta = 0.f;
+	cublasSetStream(handle, stream);
 	cublasSgemm_v2(handle, 
 		CUBLAS_OP_N, CUBLAS_OP_N, 
 		A_M, B_N, A_N, 
@@ -483,7 +560,7 @@ void gpu_mmul(cublasHandle_t handle,
 		&beta, 
 		dest, A_M);
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void gpu_mv(cublasHandle_t handle, 
@@ -525,15 +602,15 @@ void gpu_mv(cublasHandle_t handle,
 }
 
 void gpu_add(const float * d_x, const float * d_y, int size, 
-	float * dest)
+	float * dest, cudaStream_t stream)
 {
 	int bs = 256;
 	int s = ceil(sqrt((size + bs - 1.f) / bs));
 	dim3 gs = dim3(s, s);
 
-	add_kernel << <gs, bs >> > (d_x, d_y, size, dest);
+	add_kernel << <gs, bs, 0, stream >> > (d_x, d_y, size, dest);
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 }
 
 void gpu_mul_elemwise(const float * d_x, const float * d_y, 
@@ -576,12 +653,14 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 	float* M2, int m2, int n2, float* v2, 
 	float* v3,
 	float* dest,
-	Para* para)
+	Para* para,
+	cudaStream_t stream[])
 {
 	// dest = tanh (M1*v1 + M2*v2 + v3)
 	float alpha = 1.0f;
 	float beta = 0.0f;
 	// M1*v1
+	cublasSetStream(handle, stream[0]);
 	cublasSgemv(handle, // y = alpha * A*x + beta*y
 		CUBLAS_OP_N,
 		m1, n1,
@@ -589,9 +668,10 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 		M1, m1,
 		v1, 1,
 		&beta,
-		para->W_tmp1, 1);
-	cudaDeviceSynchronize();
+		para->d_W_tmp1, 1);
+
 	// M2*v2
+	cublasSetStream(handle, stream[1]);
 	cublasSgemv(handle, // y = alpha * A*x + beta*y
 		CUBLAS_OP_N,
 		m2, n2,
@@ -599,11 +679,12 @@ void gpu_tanh_Mv_add_Mv_add_v(cublasHandle_t handle,
 		M2, m2,
 		v2, 1,
 		&beta,
-		para->W_tmp2, 1);
+		para->d_W_tmp2, 1);
 
-	cudaDeviceSynchronize();
 	// tanh add add
-	gpu_tanh_add_add(para->W_tmp1, para->W_tmp2, v3, m1, dest);
+	cudaStreamSynchronize(stream[0]);
+	cudaStreamSynchronize(stream[1]);
+	gpu_tanh_add_add(para->d_W_tmp1, para->d_W_tmp2, v3, m1, dest);
 
 }
 

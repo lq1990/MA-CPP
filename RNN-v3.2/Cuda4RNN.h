@@ -103,13 +103,14 @@ void trainMultiThread(
 		float* hprev,
 		float* true_false,
 		float& loss,
-		Para* para
+		Para* para,
+		cudaStream_t stream[]
 	);
 
 	/*
 		idx1_targets: index 1 in targets
 	*/
-float* score2onehot(float score, int& idx1_targets,
+void score2onehot(float score, int& idx1_targets,
 		int n_output_classes,
 		float score_min,
 		float score_max);

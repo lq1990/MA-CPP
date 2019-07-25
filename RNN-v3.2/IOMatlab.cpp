@@ -58,16 +58,16 @@ void IOMatlab::read(
 	}
 
 	// malloc
-	cudaMallocManaged((void**)&sces_s->sces_data,
+	cudaMallocHost((void**)&sces_s->h_sces_data,
 		total_size * sizeof(float));
-	cudaMallocManaged((void**)&sces_s->sces_id_score,
+	cudaMallocHost((void**)&sces_s->h_sces_id_score,
 		2 * numSces * sizeof(float));
-	cudaMallocManaged((void**)&sces_s->sces_data_mn,
-		2 * numSces * sizeof(int));
-	cudaMallocManaged((void**)&sces_s->sces_data_idx_begin,
-		(numSces+1 )* sizeof(int)); // 比场景数目多一个，最后一个是data size
-	cudaMallocManaged((void**)&sces_s->num_sces, sizeof(int));
-	cudaMallocManaged((void**)&sces_s->total_size, sizeof(int));
+	cudaMallocHost((void**)&sces_s->h_sces_data_mn,
+		2 * numSces * sizeof(float));
+	cudaMallocHost((void**)&sces_s->h_sces_data_idx_begin,
+		(numSces+1 )* sizeof(float)); // 比场景数目多一个，最后一个是data size
+	cudaMallocHost((void**)&sces_s->h_num_sces, sizeof(float));
+	cudaMallocHost((void**)&sces_s->h_total_size, sizeof(float));
 
 	// loop 2. 赋值
 	// traverse rows, i.e. scenarios
@@ -104,7 +104,7 @@ void IOMatlab::read(
 			//arr[i] = matDataZScore[i];
 
 			//sces_data.push_back(matDataZScore_t[i]);
-			sces_s->sces_data[count++] = matDataZScore_t[j];
+			sces_s->h_sces_data[count++] = matDataZScore_t[j];
 		}
 
 		//matTmp.reshape(rows_matDataZScore, cols_matDataZScore);
@@ -119,11 +119,11 @@ void IOMatlab::read(
 		sces_data_mn.push_back(rows_matDataZScore_t);
 		sces_data_mn.push_back(cols_matDataZScore_t);*/
 		
-		sces_s->sces_id_score[i * 2 + 0] = id[0];
-		sces_s->sces_id_score[i * 2 + 1] = score[0];
+		sces_s->h_sces_id_score[i * 2 + 0] = id[0];
+		sces_s->h_sces_id_score[i * 2 + 1] = score[0];
 		
-		sces_s->sces_data_mn[i * 2 + 0] = rows_matDataZScore_t;
-		sces_s->sces_data_mn[i * 2 + 1] = cols_matDataZScore_t;
+		sces_s->h_sces_data_mn[i * 2 + 0] = rows_matDataZScore_t;
+		sces_s->h_sces_data_mn[i * 2 + 1] = cols_matDataZScore_t;
 
 		// save ms in vector
 		//vec.push_back(ms);
@@ -132,17 +132,40 @@ void IOMatlab::read(
 	// use sces_data_mn to create sces_data_idx_begin
 	//sces_data_idx_begin.push_back(0);
 	
-	sces_s->sces_data_idx_begin[0] = 0;
+	sces_s->h_sces_data_idx_begin[0] = 0;
 	int idx_cumsum = 0;
 	for (int i = 0; i < numSces-1; i++)
 	{
 		//idx_cumsum += sces_data_mn[i * 2] * sces_data_mn[i * 2 + 1];
-		idx_cumsum += sces_s->sces_data_mn[i * 2] * sces_s->sces_data_mn[i * 2 + 1];
+		idx_cumsum += sces_s->h_sces_data_mn[i * 2] * sces_s->h_sces_data_mn[i * 2 + 1];
 		//sces_data_idx_begin.push_back(idx_cumsum);
-		sces_s->sces_data_idx_begin[i + 1] = idx_cumsum;
+		sces_s->h_sces_data_idx_begin[i + 1] = idx_cumsum;
 	}
-	sces_s->sces_data_idx_begin[numSces] = total_size;
-	sces_s->num_sces[0] = numSces;
-	sces_s->total_size[0] = count;
+	sces_s->h_sces_data_idx_begin[numSces] = total_size;
+	sces_s->h_num_sces[0] = numSces;
+	sces_s->h_total_size[0] = count;
+
+
+	// malloc, mem cpy H2D
+	cudaMalloc((void**)&sces_s->d_sces_id_score, numSces * 2 * sizeof(float));
+	cudaMalloc((void**)&sces_s->d_sces_data, count * sizeof(float));
+	cudaMalloc((void**)&sces_s->d_sces_data_mn, numSces * 2 * sizeof(float));
+	cudaMalloc((void**)&sces_s->d_sces_data_idx_begin, (numSces+1) * sizeof(float));
+	cudaMalloc((void**)&sces_s->d_num_sces, sizeof(float));
+	cudaMalloc((void**)&sces_s->d_total_size, sizeof(float));
+
+	cudaMemcpy(sces_s->d_sces_id_score, sces_s->h_sces_id_score, 
+		numSces * 2 * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(sces_s->d_sces_data, sces_s->h_sces_data,
+		count * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(sces_s->d_sces_data_mn, sces_s->h_sces_data_mn,
+		numSces * 2 * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(sces_s->d_sces_data_idx_begin, sces_s->h_sces_data_idx_begin,
+		(numSces+1) * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(sces_s->d_num_sces, sces_s->h_num_sces,
+		sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(sces_s->d_total_size, sces_s->h_total_size,
+		sizeof(float), cudaMemcpyHostToDevice);
+
 }
 

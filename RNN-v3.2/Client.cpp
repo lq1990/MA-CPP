@@ -23,28 +23,28 @@ void train()
 {
 	// ------------- train ---------------------------
 	Para* para;
-	cudaMallocManaged((void**)&para, sizeof(Para));
+	cudaMallocHost((void**)&para, sizeof(Para));
 
 	// ========= read data from matlab-file ==============
 	IOMatlab::read("listStructTrain",
 		para); // num of scenarios
-	int size = para->total_size[0];
-	int numSces = para->num_sces[0]; 
+	int size = para->h_total_size[0];
+	int numSces = para->h_num_sces[0]; 
 	cout << "total size: " << size << ", numS: " << numSces << endl;
 	cout << " ========== read data into 'para' over =======\n" << endl;
-	printLast(para->sces_data, size, 10, "last 10 elems of data");
+	printLast(para->h_sces_data, size, 10, "last 10 elems of data");
 
 	// print first sce: sce0
-	float* id_score = para->sces_id_score;
-	float* mn = para->sces_data_mn;
-	float* idx_begin = para->sces_data_idx_begin;
+	float* id_score = para->h_sces_id_score;
+	float* mn = para->h_sces_data_mn;
+	float* idx_begin = para->h_sces_data_idx_begin;
 	printToHost(id_score, 2, numSces, "id_score");
 	printToHost(mn, 2, numSces, "mn");
 	printToHost(idx_begin, 1, numSces+1, "idx begin");
 
-	float* sces_data = para->sces_data;
-	float* sce0_data; // data of first sce
-	cudaMallocManaged((void**)&sce0_data, mn[0] * mn[1] * sizeof(float));
+	float* sces_data = para->h_sces_data;
+	float* sce0_data;
+	cudaMallocHost((void**)&sce0_data, mn[0] * mn[1] * sizeof(float));
 	for (int i = 0; i < mn[0]*mn[1]; i++)
 	{
 		sce0_data[i] = sces_data[i];
@@ -57,50 +57,53 @@ void train()
 	// decalre
 	float* lossAllVec;
 	// malloc loss and struct
-	cudaMallocManaged((void**)&lossAllVec, (int)total_epoches*sizeof(float));
-	
-	const int M = para->sces_data_mn[0];
-	float* cache;
-	cudaMallocManaged((void**)&cache, para->num_sces[0] * 2 * sizeof(float));
-	const int Nmax =
-		gpu_max_value(para->sces_data_mn, para->num_sces[0] * 2, cache);
+	cudaMalloc((void**)&lossAllVec, (int)total_epoches*sizeof(float));
+	cout << "after malloc lossAllVec\n";
+
+	const int M = para->h_sces_data_mn[0];
+	cout << "M: " << M << endl;
+	float* d_cache;
+	cudaMallocManaged((void**)&d_cache, 22 * 2 * sizeof(float));
+	gpu_max_value(para->d_sces_data_mn, 22 * 2, d_cache);
+	cout << "after max value\n";
+	// get val of cache
+	float Nmax = d_cache[0];
+	cout << "Nmax: " << Nmax << endl;
+
+
 	// malloc members of struct para
-	initPara(para, Nmax);
+	cout << "now init Para" << endl;
+	initPara(para, Nmax); 
 	cudaDeviceSynchronize();
 	cout << "initPara over" << endl;
 	// ---------- assign values ------------
 	
-	para->total_epoches[0]		= total_epoches;
-	cout << para->total_epoches[0] << endl; // 51
-	para->n_features[0]			= n_features;
-	cout << para->n_features[0] << endl; // 17
-	para->n_hidden[0]			= n_hidden;
-	cout << para->n_hidden[0] << endl; // 50
-	para->n_output_classes[0]	= n_output_classes;
-	cout << para->n_output_classes[0] << endl;
-	para->alpha[0]				= alpha;
-	para->score_min[0]			= score_min;
-	para->score_max[0]			= score_max;
+	para->h_total_epoches[0]		= total_epoches;
+	para->h_n_features[0]			= n_features;
+	para->h_n_hidden[0]			= n_hidden;
+	para->h_n_output_classes[0]	= n_output_classes;
+	para->h_alpha[0]				= alpha;
+	para->h_score_min[0]			= score_min;
+	para->h_score_max[0]			= score_max;
 
 	cout << "para: "
-		<< para->total_epoches[0] << "\n"
-		<< para->n_features[0] << "\n"
-		<< para->n_hidden[0] << "\n"
-		<< para->n_output_classes[0] << "\n"
-		<< para->alpha[0] << "\n"
-		<< para->score_min[0] << "\n"
-		<< para->score_max[0] << endl;
+		<< para->h_total_epoches[0] << "\n"
+		<< para->h_n_features[0] << "\n"
+		<< para->h_n_hidden[0] << "\n"
+		<< para->h_n_output_classes[0] << "\n"
+		<< para->h_alpha[0] << "\n"
+		<< para->h_score_min[0] << "\n"
+		<< para->h_score_max[0] << endl;
 	cout << "assign over\n";
 
 	// para, init rand val of W b
-	gpu_fill_rand(para->Wxh, para->n_hidden[0], para->n_features[0], -0.1f, 0.1f, 1);
-	gpu_fill_rand(para->Whh, para->n_hidden[0], para->n_hidden[0], -0.1f, 0.1f, 11);
-	gpu_fill_rand(para->Why, para->n_output_classes[0], para->n_hidden[0], -0.1f,0.1f,111);
-	gpu_fill_rand(para->bh, para->n_hidden[0],1, -0.1f, 0.1f, 22);
-	gpu_fill_rand(para->by, para->n_output_classes[0], 1, -0.1f, 0.1f, 222);
+	gpu_fill_rand(para->d_Wxh, para->h_n_hidden[0], para->h_n_features[0], -0.1f, 0.1f, 1);
+	gpu_fill_rand(para->d_Whh, para->h_n_hidden[0], para->h_n_hidden[0], -0.1f, 0.1f, 11);
+	gpu_fill_rand(para->d_Why, para->h_n_output_classes[0], para->h_n_hidden[0], -0.1f,0.1f,111);
+	gpu_fill_rand(para->d_bh,  para->h_n_hidden[0],1, -0.1f, 0.1f, 22);
+	gpu_fill_rand(para->d_by,  para->h_n_output_classes[0], 1, -0.1f, 0.1f, 222);
 
-
-
+	cout << "fill rand of W b overn\n";
 	cout << "now train..." << endl;
 	trainMultiThread(lossAllVec, 
 		para);
@@ -111,6 +114,12 @@ void train()
 		epoches 101 : 93s
 
 	*/
+
+
+	cudaFree(d_cache);
+	cudaFree(lossAllVec);
+	cudaFreeHost(sce0_data);
+
 
 }
 
@@ -163,9 +172,72 @@ int main()
 	// ===============================================
 	
 	train();
+
+	// 21 epoches, 50 n_hidden => 53.8s 比cpu单线程的73s
+
 	
 	//test_gpu_fns();
+
+
+	// ------------------ score2onehot -----------------------------
+	//int idx1_targets;
+
+	/*for (float i = 6.0f; i <= 8.91f; i+=0.1f)
+	{
+		float* onehot = score2onehot(i, idx1_targets, 10, 6.0, 8.9);
+		cout << "i: " << i << ": ";
+		printToHost(onehot, 1, 10, "onehot");
+
+	}*/
+
+
+	// find max value  :)
+	/*float* d_in, *cache;
+	cudaMallocManaged((void**)&d_in, 10 * sizeof(float));
+	cudaMallocManaged((void**)&cache, 10 * sizeof(float));
+	for (int i = 0; i < 10; i++)
+	{
+		float val = rand() % 10;
+		d_in[i] = val;
+		cout << val << " ";
+	}
+	cout << endl;
+
+
+	gpu_max_value(d_in, 10, cache);
+
+	cout << "cache: \n";
+	cout << cache[0] << endl;
+	cout << endl;*/
+
+	// cudaMallocHost 是否可以 []，可以啊
+	/*float* h_in;
+	cudaMallocHost((void**)&h_in, 10 * sizeof(float));
+	for (int i = 0; i < 10; i++)
+	{
+		cout << h_in[i] << "  ";
+	}
+	cout << endl;
+
+	h_in[0] = 10;
+	for (int i = 0; i < 10; i++)
+	{
+		cout << h_in[i] << "  ";
+	}
+	cout << endl;
+
+	cudaFreeHost(h_in);*/
 	
+	// gpu_fill  :)
+	/*Para* pa;
+	cudaMallocHost((void**)&pa, sizeof(Para));
+	cudaMalloc((void**)&pa->d_bh, 10 * sizeof(float));
+	gpu_fill(pa->d_bh, 10, 2.1f);
+
+	printToHost(pa->d_bh, 1, 10, "d_out");
+
+	cudaFree(pa->d_dbh);
+	cudaFreeHost(pa);*/
 
 	// ============================================
 	mclock.stopAndShow();

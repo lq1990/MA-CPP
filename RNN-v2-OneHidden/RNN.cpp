@@ -235,9 +235,9 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, i
 		loss_mean_each_epoch.push_back(loss_this_epoch);
 		accuracy_each_epoch.push_back(accu_this_epoch);
 
-		if (i % 20 == 0)
+		if (i % 10 == 0)
 		{
-			cout << "epoch: " << i << ", loss_mean_this_epoch: " << loss_this_epoch
+			cout << "lambda: " << lambda << ", epoch: " << i << ", loss_mean_this_epoch: " << loss_this_epoch
 				<< ", accu_this_epoch: " << accu_this_epoch << endl;
 		}
 
