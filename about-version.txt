@@ -14,4 +14,9 @@ RNN-v3.1
 RNN-v3.2
 	use cudaMalloc(Host) instead of cudaMallocManaged
 	to speed up
+
+RNN-v4
+	based on RNN-v2,
+	naive RNN => LSTM
+
 	
