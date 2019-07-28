@@ -1,0 +1,214 @@
+﻿#include "LSTM.h"
+
+int LSTM::H = 50;
+int LSTM::D = 17;
+int LSTM::Z = H + D;
+int LSTM::Classes = 10;
+
+map<string, mat> LSTM::model = { // 列表初始化参数
+	{"Wf", arma::randn(Z, H) / sqrt(Z / 2.)}, // W 包含h x
+	{"Wi", arma::randn(Z, H) / sqrt(Z / 2.)},
+	{"Wc", arma::randn(Z, H) / sqrt(Z / 2.)},
+	{"Wo", arma::randn(Z, H) / sqrt(Z / 2.)},
+	{"Wy", arma::randn(H, Classes) / sqrt(Classes / 2.)},
+
+	{"bf", arma::zeros(1, H)},
+	{"bi", arma::zeros(1, H)},
+	{"bc", arma::zeros(1, H)},
+	{"bo", arma::zeros(1, H)},
+	{"by", arma::zeros(1, Classes)}
+};
+
+LSTM::LSTM()
+{
+}
+
+
+LSTM::~LSTM()
+{
+}
+
+map<string, mat> LSTM::lstm_forward(mat curX, mat hprev, mat cprev)
+{
+	map<string, mat> m = model;
+	mat Wf = m["Wf"], Wi = m["Wi"], Wc = m["Wc"], Wo = m["Wo"], Wy = m["Wy"];
+	mat bf = m["bf"], bi = m["bi"], bc = m["bc"], bo = m["bo"], by = m["by"];
+
+	mat h_old = hprev, c_old = cprev;
+
+	// concat old state with current input
+	mat X =  arma::join_horiz(h_old, curX); // [H_, curX] 结合一块后 作为本时刻输入
+
+	mat hf = MyLib<mat>::sigmoid(X * Wf + bf); // hidden forget gate
+	mat hi = MyLib<mat>::sigmoid(X * Wi + bi); // hidden input gate
+	mat ho = MyLib<mat>::sigmoid(X * Wo + bo); // hidden output gate
+	mat hc = arma::tanh(X * Wc + bc); // hidden candidate cell
+	
+	mat c = hf % c_old + hi % hc; // (1,h)
+	mat h = ho % arma::tanh(c); // (1,h)
+
+	mat y = h * Wy + by; // (1,h)(h,y)
+	mat prob = MyLib<mat>::softmax(y);
+
+	hprev = h;
+	cprev = c;
+
+	// return cache
+	map<string, mat> cache;
+	cache["prob"] = prob;
+	cache["c_old"] = c_old;
+	cache["h_old"] = h_old;
+	cache["c"] = c;
+	cache["h"] = h;
+	cache["X"] = X;
+	cache["hf"] = hf;
+	cache["hi"] = hi;
+	cache["ho"] = ho;
+	cache["hc"] = hc;
+	cache["y"] = y;
+
+	return cache;
+}
+
+map<string, mat> LSTM::lstm_backward(mat prob, int y_train_idx1,
+	mat dh_next, mat dc_next, map<string, mat> cache)
+{
+	// softmax loss gradient
+	mat dy = prob; // deep copy
+	dy(0, y_train_idx1) -= 1;
+
+	// hidden to output gradient
+	mat dWy = cache["h"].t() * dy; // (h,1)(1,y)
+	mat dby = dy; // (1,y)
+
+	mat dh = dy * model["Wy"].t() + dh_next; // (1,y)(y,h)， dh两个方向的影响，y和dhnext
+
+	// gradient for ho in h = ho % tanh(c)
+	mat dho = tanh(cache["c"]) % dh; // (1,h)
+	dho =  MyLib<mat>::dsigmoid(cache["ho"]) % dho; // dho_raw
+
+	// gradient for c in    h = ho % tanh(c)
+	mat dc = cache["ho"] % dh % MyLib<mat>::dtanh(cache["c"]);
+	dc = dc + dc_next; // dc 和dh类似受两个方向影响，dcnext dh
+
+	// gradient for hf in c=hf % c_old + hi % hc
+	mat dhf = cache["c_old"] % dc;
+	dhf = MyLib<mat>::dsigmoid(cache["hf"]) % dhf; // dhf_raw
+
+	// gradient for hi in c = hf % c_old + hi % hc
+	mat dhi = cache["hc"] % dc; // hc: hidden candidate cell
+	dhi = MyLib<mat>::dsigmoid(cache["hi"]) % dhi; // dhi_raw
+
+	// gradient for 候选细胞 hc in c = hf % c_old + hi % hc
+	mat dhc = cache["hi"] % dc;
+	dhc = MyLib<mat>::dtanh(cache["hc"]) % dhc;
+
+	// gate gradients, just a normal fully connected layer gradient
+	mat dWf = cache["X"].t() * dhf;
+	mat dbf = dhf;
+	mat dXf = dhf * model["Wf"].t();
+
+	mat dWi = cache["X"].t() * dhi;
+	mat dbi = dhi;
+	mat dXi = dhi * model["Wi"].t();
+
+	mat dWo = cache["X"].t() * dho;
+	mat dbo = dho;
+	mat dXo = dho * model["Wo"].t();
+
+	mat dWc = cache["X"].t() * dhc;
+	mat dbc = dhc;
+	mat dXc = dhc * model["Wc"].t();
+
+	// as X was used in multiple gates, the gradient must be accumulated here
+	mat dX = dXo + dXc + dXi + dXf;
+	// split the concatenated X, so that we get out gradient of h_old
+	dh_next = dX.cols(0, H); // dhnext由后往前传时的更新
+	// gradient for c_old in c = hf % c_old + hi % hc
+	dc_next = cache["hf"] % dc;
+
+	map<string, mat> grad = {
+		{"Wf", dWf}, // 把gradient存起来
+		{"Wi", dWi},
+		{"Wc", dWc},
+		{"Wo", dWo},
+		{"Wy", dWy},
+		{"bf", dbf},
+		{"bi", dbi},
+		{"bc", dbc},
+		{"bo", dbo},
+		{"by", dby},
+		{"dh_next", dh_next},
+		{"dc_next", dc_next}
+	};
+
+	return grad;
+}
+
+tuple<map<string, mat>, double, mat, mat> LSTM::train_step(mat X_train, 
+	mat y_train, mat h, mat c)
+{
+	vector<mat> probs; // saves prob(行向量)
+	vector<map<string, mat>> caches;
+	double loss = 0.;
+
+	// ------------ forward step ------------------
+	for (int i = 0; i < X_train.n_rows; i++)
+	{
+		mat x = X_train.row(i);
+		mat y_true = y_train.row(i);
+
+		map<string,mat> cache = lstm_forward(x, h, c);
+		loss += cross_entropy(cache["prob"], y_true);
+
+		// store forward step result to be used in backward step
+		probs.push_back(cache["prob"]);
+		caches.push_back(cache); // 前传的每一步cache存起来，供给反传使用
+	}
+
+	// the loss is the average cross entropy
+	loss /= X_train.n_rows;
+
+	// ------------- backward step --------------------
+
+	// gradient for dh_next, dc_next is zero for the last timestep
+	mat dh_next = arma::zeros(1, H); // 设定 dhnext dxnext从后开始的起始值
+	mat dc_next = arma::zeros(1, H);
+
+	map<string, mat> grads; // saves dW db, init 0
+	// init grads
+	for (map<string, mat>::iterator iter = model.begin(); 
+		iter != model.end(); iter++)
+	{
+		string pname = iter->first;
+		mat matVal = iter->second;
+
+		grads[pname] = arma::zeros(matVal.n_rows, matVal.n_cols);
+	}
+
+	// go backward from the last tiemstep to the first
+	for (int i = probs.size()-1; i >= 0; i--)
+	{
+		mat prob = probs[i];
+		mat y_true = y_train.row(i);
+		int y_train_idx1;
+		map<string,mat> cache = caches[i];
+
+		map<string, mat> grad_dnext = // saves dW db dnext
+			lstm_backward(prob, y_train_idx1, dh_next, dc_next, cache);
+
+		// accumulate gradients from all timesteps
+		for (auto iter : grads /* grads saves W b */) {
+			string k = iter.first;
+			grads[k] += grad_dnext[k]; // 在反传中 dW db是不断叠加的
+		}
+
+	}
+
+	// tuple 通过 std::get<0 | 1 | 2>(t) 获取元素
+	tuple < map<string, mat>, double, mat, mat> t;
+	t = std::make_tuple(grads, loss, h, c);
+
+	return t;
+}
+

@@ -18,5 +18,6 @@ RNN-v3.2
 RNN-v4
 	based on RNN-v2,
 	naive RNN => LSTM
-
+RNN-v4.1
+	LSTM, coding that leart from Web
 	

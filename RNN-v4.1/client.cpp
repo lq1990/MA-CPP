@@ -8,7 +8,6 @@
 #include "MyLib.h"
 #include <string>
 #include <sstream>
-#include "LSTM.h"
 
 const double INFI = 0xffffffff >> 1;
 
@@ -102,10 +101,10 @@ vector<SceStruct> read_write(const char* fileName)
 void show_myListStruct()
 {
 	vector<SceStruct> vec = read_write("listStructTrain");
-	cout << "size of vector: " << vec.size() << endl;
+	std::cout << "size of vector: " << vec.size() << endl;
 	// show first sce
 	SceStruct first = vec[0];
-	cout << "id: " << first.id << ", score: " << first.score << endl
+	std::cout << "id: " << first.id << ", score: " << first.score << endl
 		<< "dim: " << first.matDataZScore.n_rows << " " << first.matDataZScore.n_cols << endl
 		<< "matDataZScore: \n" << first.matDataZScore << endl;
 }
@@ -119,12 +118,19 @@ void loadWbToPredictListStruct(const char* fileName)
 	//const char* fileName = "listStructTest";
 
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
+
 	//// read W b
-	mat Wxh, Whh, Why, bh, by;
-	Wxh.load("Wxh.txt", raw_ascii);
-	Whh.load("Whh.txt", raw_ascii);
-	Why.load("Why.txt", raw_ascii);
-	bh.load("bh.txt", raw_ascii);
+	mat Wf, Wi, Wc, Wo, Wy;
+	mat bf, bi, bc, bo, by;
+	Wf.load("Wf.txt", raw_ascii);
+	Wi.load("Wi.txt", raw_ascii);
+	Wc.load("Wc.txt", raw_ascii);
+	Wo.load("Wo.txt", raw_ascii);
+	Wy.load("Wy.txt", raw_ascii);
+	bf.load("bf.txt", raw_ascii);
+	bi.load("bi.txt", raw_ascii);
+	bc.load("bc.txt", raw_ascii);
+	bo.load("bo.txt", raw_ascii);
 	by.load("by.txt", raw_ascii);
 
 	vector<SceStruct> listStruct = read_write(fileName);
@@ -137,9 +143,12 @@ void loadWbToPredictListStruct(const char* fileName)
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wxh, Whh, Why, bh, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
+		RNN::predictOneScenario(Wf, Wi, Wc, Wo, Wy,
+			bf, bi, bc, bo, by,
+			first.matDataZScore,
+			first.score, loss, idx_target, idx_pred);
 
-		cout << fileName << " predit scenario id: \t" << first.id << "\t"
+		std::cout << fileName << " predit scenario id: \t" << first.id << "\t"
 			<< "target score:  " << first.score << "\t"
 			<< "idx target - prediction: " << idx_target << " - " << idx_pred << "\t"
 			<< "loss: " << loss 
@@ -149,42 +158,55 @@ void loadWbToPredictListStruct(const char* fileName)
 		vecLossMean.push_back(loss);
 		true_false.push_back((idx_target==idx_pred ? 1 : 0));
 	}
+
 	double lossMean = MyLib<double>::mean_vector(vecLossMean);
 	double accu = MyLib<double>::mean_vector(true_false);
-	cout << "loss mean: " << lossMean << ", accu: " << accu << endl;
+	std::cout << "loss mean: " << lossMean << "\t accu: " << accu << endl;
+
 }
 
 /*
 	输出 listStruct CV/Train loss mean
 */
-void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, double& lossMean, double& accu)
+void calcPredLossMeanAccu(map<string, arma::mat> mp, 
+	const char* fileName, double& lossMean, double& accu)
 {
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
 
-	mat Wxh, Whh, Why, bh, by;
-	Wxh = mp["Wxh"];
-	Whh = mp["Whh"];
-	Why = mp["Why"];
-	bh = mp["bh"];
+	mat Wf, Wi, Wc, Wo, Wy,
+		bf, bi, bc, bo, by;
+	Wf = mp["Wf"];
+	Wi = mp["Wi"];
+	Wc = mp["Wc"];
+	Wo = mp["Wo"];
+	Wy = mp["Wy"];
+	bf = mp["bf"];
+	bi = mp["bi"];
+	bc = mp["bc"];
+	bo = mp["bo"];
 	by = mp["by"];
 
-	vector<SceStruct> listStruct = read_write(fileName); // listStruct
+	vector<SceStruct> listStruct = read_write(fileName);
 	vector<double> true_false;
 
 	vector<double> vecLossMean; // 存储所有场景预测值的loss mean
-	cout << endl << fileName << " predict DataSet: " << endl;
 	for (int i = 0; i < listStruct.size(); i++) // 遍历所有场景
 	{
 		SceStruct first = listStruct[i];
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wxh, Whh, Why, bh, by, first.matDataZScore, first.score, loss, idx_target, idx_pred);
+		RNN::predictOneScenario(Wf, Wi, Wc, Wo, Wy,
+			bf, bi, bc, bo, by,
+			first.matDataZScore,
+			first.score, loss, idx_target, idx_pred);
 
-		cout << "predict scenario id: " << first.id << "\t"
+		std::cout << fileName << " predit scenario id: \t" << first.id << "\t"
 			<< "target score:  " << first.score << "\t"
 			<< "idx target - prediction: " << idx_target << " - " << idx_pred << "\t"
-			<< "loss: " << loss << (idx_target==idx_pred ? "\t true" : "\t ---false") << endl;
+			<< "loss: " << loss
+			<< (idx_target == idx_pred ? " true " : " ---false ")
+			<< endl;
 
 		vecLossMean.push_back(loss);
 		true_false.push_back((idx_target == idx_pred ? 1 : 0));
@@ -192,6 +214,7 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp, const char* fileName, doubl
 
 	lossMean = MyLib<double>::mean_vector(vecLossMean);
 	accu = MyLib<double>::mean_vector(true_false);
+	std::cout << "loss mean: " << lossMean << "\t accu: " << accu << endl;
 }
 
 /*
@@ -226,7 +249,7 @@ void train_rnn()
 	double globalCVMaxAccu = -INFI;
 
 	double maxLambda = 0.6000001;
-	double intervalLambda = 0.01;
+	double intervalLambda = 0.1;
 	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 1, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
 	for (double lambda = 0, i = 0; lambda < maxLambda; lambda+= intervalLambda, i++)
 	{
@@ -245,7 +268,7 @@ void train_rnn()
 		double trainLossMean, trainAccu;
 		calcPredLossMeanAccu(mp, "listStructTrain", trainLossMean, trainAccu); // 计算 Train数据集的 lossMean
 
-		cout << "lambda: " << lambda << endl
+		std::cout << "lambda: " << lambda << endl
 			<< "DataSet\t" << "lossMean" << "\t" << "Accu" << endl
 			<< "CV     \t" << cvLossMean << "\t\t" << cvAccu << endl
 			<< "Train  \t" << trainLossMean << "\t\t" << trainAccu << endl;
@@ -258,15 +281,15 @@ void train_rnn()
 		if (cvAccu > globalCVMaxAccu || (cvAccu == globalCVMaxAccu && cvLossMean < globalCVMinLossMean))
 		{
 			rnn.saveParams();
-			cout << "----------------------------------------------" << endl;
-			cout << "saveParams, when lambda: " << lambda << ", cvAccu: " << cvAccu << ", cvLossMean: " << cvLossMean << endl;
-			cout << "----------------------------------------------" << endl;
+			std::cout << "----------------------------------------------" << endl;
+			std::cout << "saveParams, when lambda: " << lambda << ", cvAccu: " << cvAccu << ", cvLossMean: " << cvLossMean << endl;
+			std::cout << "----------------------------------------------" << endl;
 			
 			globalCVMaxAccu = cvAccu;
 			globalCVMinLossMean = cvLossMean;
 		}
 
-		cout << "======================================================================================" << endl << endl;
+		std::cout << "======================================================================================" << endl << endl;
 
 		matLambdaLossMeanAccu_CV_Train.save("matLambdaLossMeanAccu_CV_Train.txt", file_type::raw_ascii);
 	}
@@ -307,14 +330,14 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 
 	RNN rnn = RNN();
 
-	cout
+	std::cout
 		<< "alpha: " << RNN::alpha << ", "
 		<< "total_epoches: " << RNN::total_epoches << ", "
 		<< "n_features: " << RNN::n_features << ", "
 		<< "n_hidden: " << RNN::n_hidden << ", "
 		<< "n_output_classes: " << RNN::n_output_classes << ", "
 		<< "score_min: " << RNN::score_min  << ", "
-		<< "score_max: " << RNN::score_max  << ", "
+		<< "score_max: " << RNN::score_max
 		<< endl;
 
 	int n_threads = 8; // 线程数目
@@ -322,6 +345,11 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	rnn.trainMultiThread(listStruct, opt, n_threads, lambda); // train RNN
 	rnn.saveParams();
 	
+	/*
+						log of time:
+		epoches: 200	219.9s
+
+	*/
 
 	delete opt;
 }
@@ -338,22 +366,24 @@ int main()
 
 	//train_rnn();
 
+	// 下一步： 训练超参数lambda
+
 	
 
 	// -----------------------------
 
-	//double optLambda = 0.0; // 0.25, 0.19
+	double optLambda = 0.1; // LSTM: 
+
 	//train_rnn_withALambda("listStructTrain", optLambda);
 
-	//loadWbToPredictListStruct("listStructTrain"); cout << endl;
-	//loadWbToPredictListStruct("listStructCV"); cout << endl;
-	//loadWbToPredictListStruct("listStructTest");
+	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
+	loadWbToPredictListStruct("listStructCV"); std::cout << endl;
+	loadWbToPredictListStruct("listStructTest");
 
 	/*
-		lambda: 0.25, use listStructTrain,		train/cv/test: 0.36 / 0.57 / 0.28
-		lambda: 0.25, use listStructTrainCV,		train/cv/test: 0.5 / 0.57 / 0.286
-		lambda: 0.19, use listStructTrain,		train/cv/test: 0.77 / 0.43 / 0.14
-		lambda: 0.19, use listStructTrainCV,		train/cv/test: 0.68 / 0.71 / 0.286 , OK
+		lambda					train/cv/test
+		0.1, use Train,		0.95 / 0.43 / 0.286
+		
 	*/
 	
 	// epoches: 31, threads: 8  => dt 42.7s
@@ -362,14 +392,14 @@ int main()
 	// ======================== try =======================
 
 	// LSTM
-	LSTM lstm = LSTM();
+	/*LSTM lstm = LSTM();
 	cout
 		<< "H: " << LSTM::H << ", "
 		<< "D: " << LSTM::D << ", "
 		<< "Z: " << LSTM::Z << endl;
 
 	mat state;
-	lstm.lstm_forward(2, state);
+	lstm.lstm_forward(2, state);*/
 
 
 	// softmax
@@ -491,7 +521,7 @@ int main()
 	// ===========================================================
 
 	t_end = clock();
-	cout << "---------------------------------\ntime needed: "
+	std::cout << "---------------------------------\ntime needed: "
 		<< (double)(t_end - t_begin) / CLOCKS_PER_SEC << "s" << endl;
 	system("pause");
 	return 0;

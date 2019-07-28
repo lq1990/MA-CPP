@@ -1,0 +1,53 @@
+﻿#pragma once
+
+#include <armadillo>
+#include <iostream>
+#include <string>
+#include <map>
+#include <vector>
+#include <tuple>
+#include "MyLib.h"
+
+using namespace std;
+using namespace arma;
+
+/**
+	learning from Web
+*/
+class LSTM
+{
+public:
+	LSTM();
+	~LSTM();
+
+	/**
+		curX: 行向量
+	*/
+	map<string, mat> lstm_forward(mat curX, mat hprev, mat cprev);
+
+	map<string, mat> lstm_backward(mat prob, int y_train_idx1,
+		mat dh_next, mat dc_next, map<string, mat> cache);
+
+
+	/**
+		return 
+			grads, // map<string,mat>
+			loss,  // double
+			h,  // mat
+			c   // mat
+	*/
+	tuple<map<string,mat>, double, mat, mat> train_step(mat X_train, mat y_train, mat h, mat c);
+
+	double cross_entropy(mat prob, mat y_true);
+
+public:
+	static int H; // n_hidden
+	static int D; // n_features
+	static int Z; // Z = H + D, concat LSTM state with the input
+	static int Classes; // n_output_classes
+
+	static map<string, mat> model; // key: W b
+
+
+};
+

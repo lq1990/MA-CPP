@@ -27,9 +27,6 @@
     <ClCompile Include="SGD.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="LSTM.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyLib.h">
@@ -45,9 +42,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SGD.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="LSTM.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

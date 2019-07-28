@@ -125,14 +125,12 @@
   <ItemGroup>
     <ClCompile Include="Adagrad.cpp" />
     <ClCompile Include="client.cpp" />
-    <ClCompile Include="LSTM.cpp" />
     <ClCompile Include="RNN.cpp" />
     <ClCompile Include="SGD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adagrad.h" />
     <ClInclude Include="AOptimizer.h" />
-    <ClInclude Include="LSTM.h" />
     <ClInclude Include="MyLib.h" />
     <ClInclude Include="RNN.h" />
     <ClInclude Include="SGD.h" />
