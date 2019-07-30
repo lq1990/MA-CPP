@@ -248,11 +248,16 @@ void train_rnn()
 	double globalCVMinLossMean = INFI;
 	double globalCVMaxAccu = -INFI;
 
-	double maxLambda = 0.6000001;
-	double intervalLambda = 0.1;
-	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 1, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
-	for (double lambda = 0, i = 0; lambda < maxLambda; lambda+= intervalLambda, i++)
+	double maxLambda = 0.3000001;
+	double intervalLambda = 0.01;
+	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 2, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
+	for (double lambda = 0, i = 0; lambda <= maxLambda; lambda+= intervalLambda, i++)
 	{
+		if (lambda < 0.22)
+		{
+			continue;
+		}
+
 		// 注：第n次训练出来的参数，到了第n+1次会被作为init初值使用。
 		// 优点：会提高第n+1次训练的收敛速度。
 		// 缺点：有可能陷入局部最优。
@@ -263,9 +268,9 @@ void train_rnn()
 		// 2. 再用参数对CV数据集预测，得到lossmean，存起来
 		map<string, arma::mat> mp = rnn.getParams();
 
-		double cvLossMean, cvAccu;
+		double cvLossMean = 0., cvAccu=0.;
 		calcPredLossMeanAccu(mp, "listStructCV", cvLossMean, cvAccu); // 计算 CV数据集的 lossMean
-		double trainLossMean, trainAccu;
+		double trainLossMean=0., trainAccu=0.;
 		calcPredLossMeanAccu(mp, "listStructTrain", trainLossMean, trainAccu); // 计算 Train数据集的 lossMean
 
 		std::cout << "lambda: " << lambda << endl
@@ -365,16 +370,16 @@ int main()
 
 
 	//train_rnn();
-
-	// 下一步： 训练超参数lambda
+	 /*
+		lambda: 0.22, 0.23, 0.19, 0.18
+	 */
 
 	
 
 	// -----------------------------
 
-	double optLambda = 0.1; // LSTM: 
-
-	//train_rnn_withALambda("listStructTrain", optLambda);
+	double optLambda = 0.23; // LSTM: 
+	train_rnn_withALambda("listStructTrainCV", optLambda);
 
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
 	loadWbToPredictListStruct("listStructCV"); std::cout << endl;
@@ -383,6 +388,7 @@ int main()
 	/*
 		lambda					train/cv/test
 		0.1, use Train,		0.95 / 0.43 / 0.286
+		0.22, use Train,	
 		
 	*/
 	

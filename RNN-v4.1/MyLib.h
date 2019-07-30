@@ -31,7 +31,7 @@ public:
 	{
 		// softmax = exp(x) / sum(exp(x))
 		mat sum_exp = arma::sum(arma::exp(mx), 0); // sum(,0) 列方向sum
-		return arma::exp(mx) / sum_exp(0, 0);
+		return arma::exp(mx) / (sum_exp(0, 0) + pow(10, -8) );
 	}
 
 	static mat sigmoid(arma::mat mx)

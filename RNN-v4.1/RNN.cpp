@@ -2,8 +2,8 @@
 
 std::mutex RNN::mtx;
 
+int		RNN::total_epoches = 501;
 double	RNN::alpha = 0.1;
-int		RNN::total_epoches = 201;
 double	RNN::score_max = 8.9;
 double	RNN::score_min = 6.0;
 int		RNN::n_features = 17;
@@ -164,7 +164,8 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 
 		if (i % 10 == 0)
 		{
-			cout << "lambda: " << lambda << ", epoch: " << i << ", loss_mean_this_epoch: " << loss_this_epoch
+			cout << "lambda: " << lambda << ", epoch: " << i 
+				<< ", loss_mean_this_epoch: " << loss_this_epoch
 				<< ", accu_this_epoch: " << accu_this_epoch << endl;
 		}
 
@@ -246,6 +247,8 @@ map<string, mat> RNN::lossFun(mat inputs,
 			ps[t] = RNN::softmax(ys[t]);
 
 			loss += -log( ps[t](idx1) );
+
+			//cout << "loss: " << loss << endl;
 
 			// accuracy
 			uvec idx_max_ps = arma::index_max(ps[t], 1); // index_prediction
@@ -523,7 +526,7 @@ mat RNN::softmax(arma::mat mx)
 {
 	// softmax = exp(x) / sum(exp(x))
 	mat sum_exp = arma::sum(arma::exp(mx), 1); // sum(,0) 列方向sum
-	return arma::exp(mx) / sum_exp(0, 0);
+	return arma::exp(mx) / (sum_exp(0, 0) /* + pow(10, -8) */ );
 }
 
 void RNN::clip(mat& matrix, double maxVal, double minVal)
@@ -554,8 +557,8 @@ mat RNN::score2onehot(double score, int& idx1)
 
 	idx1 = std::floor(pos / part);
 
-	mat zs = arma::zeros<mat>(n_output_classes, 1);
-	zs(idx1, 0) = 1;
+	mat zs = arma::zeros<mat>(1, n_output_classes); // 默认行向量
+	zs(0, idx1) = 1;
 
 	return zs;
 }
