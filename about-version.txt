@@ -20,4 +20,14 @@ RNN-v4
 	naive RNN => LSTM
 RNN-v4.1
 	LSTM, coding that leart from Web
+RNN-v4.2 
+	encapsulate hidden layer of LSTM, so that multi-hidden layer is easy to new
+
+
+
+
+
+
+
+
 	

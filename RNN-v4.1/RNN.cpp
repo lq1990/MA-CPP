@@ -4,11 +4,13 @@ std::mutex RNN::mtx;
 
 int		RNN::total_epoches = 501;
 double	RNN::alpha = 0.1;
-double	RNN::score_max = 8.9;
-double	RNN::score_min = 6.0;
-int		RNN::n_features = 17;
-int		RNN::n_hidden = 50;
+double	RNN::score_max = 9.4; // start: 8.9, gearShiftUp: 9.4
+double	RNN::score_min = 4.9; // start: 6.0, gearShiftUp: 4.9
+int		RNN::n_features = 20;
+int		RNN::n_hidden = 30;
 int		RNN::n_output_classes = 10;
+
+int RNN::tmp = 11; // 试验是否可以 实例操作静态对象
 
 const int D = RNN::n_features;
 const int H = RNN::n_hidden;
@@ -143,6 +145,22 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				}
 			}
 
+			// clip
+			double maxVal, minVal;
+			maxVal = 5.0;
+			minVal = -5.0;
+			clip(dWfSum, maxVal, minVal);
+			clip(dWiSum, maxVal, minVal);
+			clip(dWcSum, maxVal, minVal);
+			clip(dWoSum, maxVal, minVal);
+			clip(dWySum, maxVal, minVal);
+			clip(dbfSum, maxVal, minVal);
+			clip(dbiSum, maxVal, minVal);
+			clip(dbcSum, maxVal, minVal);
+			clip(dboSum, maxVal, minVal);
+			clip(dbySum, maxVal, minVal);
+			
+
 			// update params。把每个场景看做一个样本的话，则是sgd。
 			opt->optimize(this->Wf, this->alpha, dWfSum, mdWf, i);
 			opt->optimize(this->Wi, this->alpha, dWiSum, mdWi, i);
@@ -166,7 +184,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 		{
 			cout << "lambda: " << lambda << ", epoch: " << i 
 				<< ", loss_mean_this_epoch: " << loss_this_epoch
-				<< ", accu_this_epoch: " << accu_this_epoch << endl;
+				<< ", accu_this_epoch: " << accu_this_epoch << "\n";
 		}
 
 	}
@@ -229,7 +247,8 @@ map<string, mat> RNN::lossFun(mat inputs,
 	for (int t = 0; t < inputs.n_rows; t++)
 	{
 		xs[t] = inputs.row(t); // (1,d)
-		X[t] = arma::join_horiz(hs[t - 1], xs[t]); // X: concat [h_old, curx] (1,h+d)
+		X[t] = arma::join_horiz(hs[t - 1], xs[t]); 
+		// X: concat [h_old, curx] (1,h+d)
 		
 		//hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
 
@@ -405,16 +424,21 @@ map<string, mat> RNN::lossFun(mat inputs,
 
 
 	// clip
-	clip(dWf, 5.0, -5.0);
-	clip(dWi, 5.0, -5.0);
-	clip(dWc, 5.0, -5.0);
-	clip(dWo, 5.0, -5.0);
-	clip(dWy, 5.0, -5.0);
-	clip(dbf, 5.0, -5.0);
-	clip(dbi, 5.0, -5.0);
-	clip(dbc, 5.0, -5.0);
-	clip(dbo, 5.0, -5.0);
-	clip(dby, 5.0, -5.0);
+	/*
+	double maxVal, minVal;
+	maxVal = 5.0;
+	minVal = -5.0;
+	clip(dWf, maxVal, minVal);
+	clip(dWi, maxVal, minVal);
+	clip(dWc, maxVal, minVal);
+	clip(dWo, maxVal, minVal);
+	clip(dWy, maxVal, minVal);
+	clip(dbf, maxVal, minVal);
+	clip(dbi, maxVal, minVal);
+	clip(dbc, maxVal, minVal);
+	clip(dbo, maxVal, minVal);
+	clip(dby, maxVal, minVal);
+	*/
 	
 	map<string, mat> mymap;
 	mymap["loss"] = loss;
@@ -535,14 +559,17 @@ void RNN::clip(mat& matrix, double maxVal, double minVal)
 	matrix.transform([maxVal, minVal](double val) {
 		if (val >= maxVal)
 		{
+			//cout << "clip, val >= " << maxVal << " ";
 			return maxVal;
 		}
 		else if (val <= minVal)
 		{
+			//cout << "clip, val <= " << minVal << " ";
 			return minVal;
 		}
 		else
 		{
+			//cout << "no clip ";
 			return val;
 		}
 	});
@@ -550,6 +577,12 @@ void RNN::clip(mat& matrix, double maxVal, double minVal)
 
 mat RNN::score2onehot(double score, int& idx1)
 {
+	if (score > score_max || score < score_min)
+	{
+		cout << "score > score_max || score < score_min" << endl;
+	}
+
+
 	double part = 1.0 / n_output_classes;
 
 	double pos = (score - score_min)
@@ -647,11 +680,25 @@ map<string, arma::mat> RNN::getParams()
 	return mymap;
 }
 
-void RNN::setParams(mat Wxh, mat Whh, mat Why, mat bh, mat by)
+void RNN::loadParams()
 {
 	/*this->Wxh = Wxh;
 	this->Whh = Whh;
 	this->Why = Why;
 	this->bh = bh;
 	this->by = by;*/
+
+	this->Wf.load("Wf.txt", file_type::raw_ascii);
+	this->Wi.load("Wi.txt", file_type::raw_ascii);
+	this->Wc.load("Wc.txt", file_type::raw_ascii);
+	this->Wo.load("Wo.txt", file_type::raw_ascii);
+	this->Wy.load("Wy.txt", file_type::raw_ascii);
+	this->bf.load("bf.txt", file_type::raw_ascii);
+	this->bi.load("bi.txt", file_type::raw_ascii);
+	this->bc.load("bc.txt", file_type::raw_ascii);
+	this->bo.load("bo.txt", file_type::raw_ascii);
+	this->by.load("by.txt", file_type::raw_ascii);
+
+	this->tmp = 33; // 可以由实例操作 静态变量
+
 }

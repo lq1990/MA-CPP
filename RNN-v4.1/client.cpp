@@ -29,7 +29,9 @@ vector<SceStruct> read_write(const char* fileName)
 {
 	vector<SceStruct> vec;
 
-	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
+	//const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/start_loadSync/DataFinalSave/list_data/";
+	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/gearShiftUp_loadSync/DataFinalSave/list_data/";
+
 	const char* tail = ".mat";
 	char path[1000];
 	strcpy_s(path, dir);
@@ -253,10 +255,10 @@ void train_rnn()
 	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 2, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
 	for (double lambda = 0, i = 0; lambda <= maxLambda; lambda+= intervalLambda, i++)
 	{
-		if (lambda < 0.22)
+		/*if (lambda < 0.22)
 		{
 			continue;
-		}
+		}*/
 
 		// 注：第n次训练出来的参数，到了第n+1次会被作为init初值使用。
 		// 优点：会提高第n+1次训练的收敛速度。
@@ -336,17 +338,19 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	RNN rnn = RNN();
 
 	std::cout
-		<< "alpha: " << RNN::alpha << ", "
-		<< "total_epoches: " << RNN::total_epoches << ", "
-		<< "n_features: " << RNN::n_features << ", "
-		<< "n_hidden: " << RNN::n_hidden << ", "
-		<< "n_output_classes: " << RNN::n_output_classes << ", "
-		<< "score_min: " << RNN::score_min  << ", "
+		<< "alpha: " << RNN::alpha << "\n"
+		<< "total_epoches: " << RNN::total_epoches << "\n"
+		<< "n_features: " << RNN::n_features << "\n"
+		<< "n_hidden: " << RNN::n_hidden << "\n"
+		<< "n_output_classes: " << RNN::n_output_classes << "\n"
+		<< "score_min: " << RNN::score_min  << "\n"
 		<< "score_max: " << RNN::score_max
 		<< endl;
 
+
 	int n_threads = 8; // 线程数目
 
+	//rnn.loadParams(); // load params from txt
 	rnn.trainMultiThread(listStruct, opt, n_threads, lambda); // train RNN
 	rnn.saveParams();
 	
@@ -365,6 +369,7 @@ int main()
 	t_begin = clock();
 
 	// =================== main ===============================
+	cout << "this is main..." << endl;
 
 	//show_myListStruct();
 
@@ -375,21 +380,29 @@ int main()
 	 */
 
 	
-
 	// -----------------------------
 
-	double optLambda = 0.23; // LSTM: 
-	train_rnn_withALambda("listStructTrainCV", optLambda);
+	double optLambda = 0.0; // LSTM, start: 0.23, gearShift: 
+	train_rnn_withALambda("listStructTrain", optLambda);
 
+	/*
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
 	loadWbToPredictListStruct("listStructCV"); std::cout << endl;
 	loadWbToPredictListStruct("listStructTest");
+	*/
+
+	/*
+		lstm:
+		lambda	epoches	train / cv / test: 
+		0.1		1001	0.694 / 0.341 / 0.463
+		0.23	1051	0.628/0.2683/0.4878
+
+	*/
 
 	/*
 		lambda					train/cv/test
 		0.1, use Train,		0.95 / 0.43 / 0.286
-		0.22, use Train,	
-		
+		0.23, use TrainCV,  0.64 / 0.71 / 0.43
 	*/
 	
 	// epoches: 31, threads: 8  => dt 42.7s

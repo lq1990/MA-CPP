@@ -27,7 +27,9 @@ vector<SceStruct> read_write(const char* fileName)
 {
 	vector<SceStruct> vec;
 
-	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
+	//const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon/start_loadSync/DataFinalSave/list_data/";
+	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/gearShift_loadSync/DataFinalSave/list_data/";
+
 	const char* tail = ".mat";
 	char path[1000];
 	strcpy_s(path, dir);
@@ -305,7 +307,7 @@ void train_rnn_withALambda(const char* fileName, double lambda)
 	vector<SceStruct>::iterator it; it = listStruct.begin(); mat matData = it->matDataZScore;
 	int n_features = (int)matData.n_cols;
 	MyParams::alpha = 0.1; // learning_rate
-	MyParams::total_epoches = 501;
+	MyParams::total_epoches = 201;
 	MyParams::score_max = 8.9;
 	MyParams::score_min = 6.0;
 	MyParams::n_features = n_features; // 注：若设置参数，必须通过修改MyParams类中静态属性
@@ -341,10 +343,10 @@ int main()
 
 	//train_rnn();
 
-	/*
+	
 	double optLambda = 0.09000001; // 0.25, 0.19 one hidden ==> 0.06, 0.09 two hidden
-	train_rnn_withALambda("listStructTrainCV", optLambda);
-*/
+	train_rnn_withALambda("listStructTrain", optLambda);
+
 
 	loadWbToPredictListStruct("listStructTrain"); cout << endl;
 	loadWbToPredictListStruct("listStructCV"); cout << endl;

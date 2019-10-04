@@ -47,6 +47,9 @@ public:
 		此函数：一个场景计算一次 dW, db。类似sgd，但把一个场景当成一个样本。
 		inputs: 某一个场景的matData
 		score: 某一个场景的score，即label。
+		lambda:
+		hprev:
+		...
 
 		naive RNN or LSTM 的区别的核心，是在此处修改
 	*/
@@ -78,7 +81,7 @@ public:
 		目的：模型训练后，W b存储以txt格式到本地。在test中，读取txt拿到W b，用其设置RNN参数。
 		保存参数到本地，到使用时即test时，读取本地文件，可避免再训练模型耗时。
 	*/
-	void setParams(mat Wxh, mat Whh, mat Why, mat bh, mat by);
+	void loadParams();
 
 	/*
 		将 params save到本地
@@ -118,6 +121,8 @@ public:
 	static mat bc;
 	static mat bo;
 	static mat by;
+
+	static int tmp;
 
 	vector<double> lossAllVec; // 记录loss
 	vector<double> loss_mean_each_epoch;
