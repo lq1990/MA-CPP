@@ -13,6 +13,11 @@ using namespace arma;
 	目的：当model需要多个隐层时，可简单的new出来
 
 	抽出来的参数和系数：只针对隐层
+
+
+	注意：多个隐层时，比如H1 H2, 
+		前传时 X输入到H1， H1的结果hs输入到H2.			X   --> H1 --> H2
+		反传时 loss传递到H2 计算出 dxnexts, 再传给H1.    loss --> H2 --> H1 
 */
 class HiddenLayer
 {
@@ -20,7 +25,7 @@ public:
 	/*
 		n_features:
 		n_hidden_cur: 当前hidden的neurons数目
-		n_hidden_next: 相对于当前hidden的下一个hidden的neurons数目
+		n_hidden_next: 当前hidden的下一个hidden的neurons数目
 			特例：对于最后一个隐层而言，n_hidden_next=n_output_classes
 	*/
 	HiddenLayer(int n_features, int n_hidden_cur, int n_hidden_next); // 构造实例同时 初始化实例的属性即参数
@@ -42,9 +47,11 @@ public:
 			dy = ps[t];
 			dy[idx1] -= 1; 反向传过来的loss
 
-			最后一个hidden的d_output=dy
+			最后一个hidden的d_outputs_in[tend]=dy
+
+		return keys of map: dWf, dWi, dWc, dWo, dWhh, dbf, dbi, dbc, dbo, dbhh
 	*/
-	map<string, mat> hiddenBackward(mat inputs, mat d_output, double lambda0); 
+	map<string, mat> hiddenBackward(mat inputs, map<int, mat> d_outputs_in, map<int, mat>& d_outputs_out, double lambda0);
 
 	/*
 		对隐层参数进行更新，使用 deltaParams
@@ -54,21 +61,36 @@ public:
 	/*get W b of this layer*/
 	map<string, mat> getParams(); 
 
+	/*
+		以map的key    为mat的行index
+		key对应的value为mat的行中的数据
+	*/
+	static mat map2mat(map<int, mat> mp);
+
+	/*
+		title: 1,2
+	*/
+	void saveParams(string title);
+
+	void loadParams(string title);
 
 private:
 	mat sigmoid(arma::mat mx);
 
-private: 
-	// 以下为实例属性，属性是某个隐层专有，这些参数也是待训练的，Whh：隐层之间的W，对于最后一个隐层而言Whh就是Wy
-	mat Wf, Wi, Wc, Wo, Whh; // weight of forget gate, input gate, candidate cell, output gate, output
+public: 
+	// 以下为实例属性，属性是某个隐层专有，这些参数也是待训练
+	mat Wf, Wi, Wc, Wo; // weight of forget gate, input gate, candidate cell, output gate
+	mat Whh; // weight between hidden-hidden, 特例最后一个隐层的Whh=Why，反传中用到Whh
 	mat bf, bi, bc, bo, bhh; // bias
 	
+	map<int, mat> cs, hs;
 
+
+private:
 	map<int, mat> xs, X,
-		h_fs, h_is, h_os, h_cs, // hidden gate state
-		cs, hs;
+		h_fs, h_is, h_os, h_cs; // hidden gate state
 
-
+private:
 	int n_features;
 	int n_hidden_cur;
 	int n_hidden_next;

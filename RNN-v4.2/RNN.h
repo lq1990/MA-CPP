@@ -12,10 +12,19 @@
 #include <map>
 #include <vector>
 #include "AOptimizer.h"
+#include "HiddenLayer.h"
 
 
 using namespace std;
 using namespace arma;
+
+
+typedef struct LossFunctionReturn
+{
+	mat loss;
+	map<string, mat> deltaParamsH1;
+	map<string, mat> deltaParamsH2;
+};
 
 /*
 	SceStruct stores infos of Scenarios
@@ -53,7 +62,7 @@ public:
 
 		naive RNN or LSTM 的区别的核心，是在此处修改
 	*/
-	static map<string, mat> lossFun(mat inputs, 
+	static LossFunctionReturn lossFun(mat inputs,
 		double score, double lambda, mat hprev, mat cprev,
 		vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction);
 
@@ -71,6 +80,8 @@ public:
 
 	/*
 		封装前传，可供train test使用，提高代码复用。
+
+		在隐层的基础上 只需要添加从hidden到output的部分
 	*/
 	void forward(mat inputs, double score);
 
@@ -110,6 +121,7 @@ public:
 	// 则 6.1-7.0: [1,0,0]; 7.1-8.0: [0,1,0]; 8.1-9.0: [0,0,1]; 
 
 	//static map<string, mat> model; // model saves params of LSTM
+	/*
 	static mat Wf; // concat [Whf, Wxf]
 	static mat Wi;
 	static mat Wc;
@@ -122,6 +134,7 @@ public:
 	static mat bo;
 	static mat by;
 
+	*/
 	static int tmp;
 
 	vector<double> lossAllVec; // 记录loss
@@ -129,6 +142,13 @@ public:
 	vector<double> accuracy_each_epoch;
 	arma::Mat<short> log_target_prediction;
 	static std::mutex mtx;
+
+
+private:
+	static HiddenLayer* hiddenLayer1;
+	static HiddenLayer* hiddenLayer2;
+
+
 };
 
 #endif 

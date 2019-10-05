@@ -16,7 +16,7 @@ HiddenLayer::HiddenLayer(int n_features, int n_hidden_cur, int n_hidden_next)
 	this->Wi = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden input
 	this->Wc = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden candidate cell
 	this->Wo = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden output
-	this->Whh = arma::randn(H, H_next) / sqrt(H_next / 2.); //  y
+	this->Whh = arma::randn(H, H_next) / sqrt(H_next / 2.); //  W of hidden-hidden
 
 	this->bf = arma::zeros(1, H); // 可看出来，默认 行向量
 	this->bi = arma::zeros(1, H);
@@ -36,8 +36,7 @@ map<int, mat> HiddenLayer::hiddenForward(mat inputs)
 	for (int t = 0; t < inputs.n_rows; t++)
 	{
 		xs[t] = inputs.row(t); // (1,d)
-		X[t] = arma::join_horiz(hs[t - 1], xs[t]);
-		// X: concat [h_old, curx] (1,h+d)
+		X[t] = arma::join_horiz(hs[t - 1], xs[t]); // X: concat [h_old, curx] (1,h+d)
 
 		//hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
 
@@ -85,13 +84,13 @@ map<int, mat> HiddenLayer::hiddenForward(mat inputs)
 	return hs;
 }
 
-map<string, mat> HiddenLayer::hiddenBackward(mat inputs, mat d_output, double lambda0)
+map<string, mat> HiddenLayer::hiddenBackward(mat inputs, map<int, mat> d_outputs_in, map<int, mat>& d_outputs_out, double lambda0)
 {
 	mat dWf, dbf;
 	mat dWi, dbi;
 	mat dWc, dbc;
 	mat dWo, dbo;
-	mat dWhh, dbhh; // dWhh对于Whh的优化量， hh指的是hidden-hidden之间，Whh是某个hidden的输出hs对应的输出参数，最后一个hidden的Whh=Why
+	mat dWhh, dbhh; // dWhh对于Whh的优化量
 
 	dWf = arma::zeros<mat>(Wf.n_rows, Wf.n_cols);
 	dWi = arma::zeros<mat>(Wi.n_rows, Wi.n_cols);
@@ -107,25 +106,22 @@ map<string, mat> HiddenLayer::hiddenBackward(mat inputs, mat d_output, double la
 	// dnext init
 	mat dhnext = arma::zeros<mat>(hs[0].n_rows, hs[0].n_cols);
 	mat dcnext = arma::zeros<mat>(cs[0].n_rows, cs[0].n_cols);
+	mat dxnext;
 
 	mat dh, dho, dc, dhf, dhi, dhc;
 	mat dXf, dXi, dXo, dXc, dX;
+
+	// 反向遍历每个time step
 	for (int t = (int)inputs.n_rows - 1; t >= 0; t--)
 	{
 		double lambda = (t == inputs.n_rows - 1) ? lambda0 : 0.; // 一次反传中只需要一次 惩罚项相加，无论time steps有多少
 
 
-		// hidden to output gradient
-		dWhh += hs[t].t() * d_output + lambda * Whh;
-		dbhh += d_output;
+		// hidden to output (hidden-hidden) gradient
+		dWhh += hs[t].t() * d_outputs_in[t] + lambda * Whh;
+		dbhh += d_outputs_in[t];
 
-
-		// 问题：对于非最后一个hidden而言，Whh是4个W   
-		//??????????????????
-		// 4个W对应 求和，另加dhnext
-		dh = d_output * Whh.t() + dhnext; // adding dhnext
-
-
+		dh = d_outputs_in[t] * Whh.t() + dhnext; // adding dhnext
 
 		// gradient for ho in h = ho * tanh(c)
 		dho = arma::tanh(cs[t]) % dh;
@@ -168,9 +164,14 @@ map<string, mat> HiddenLayer::hiddenBackward(mat inputs, mat d_output, double la
 		dX = dXo + dXc + dXi + dXf;
 
 		// update dhnext dcnext
-		dhnext = dX.cols(0, this->n_hidden_cur - 1);
+		dhnext = dX.cols(0, this->n_hidden_cur - 1); // 左闭右闭[]
+		dxnext = dX.cols(this->n_hidden_cur, dX.n_cols-1);
 		dcnext = h_fs[t] % dc;
+
+		// 本hidden layer的dxnext会传给上一个hidden layer，要传递的值用 d_output_out存储
+		d_outputs_out[t] = dxnext;
 	}
+
 
 	map<string, mat> mymap;
 	mymap["dWf"] = dWf;
@@ -185,6 +186,58 @@ map<string, mat> HiddenLayer::hiddenBackward(mat inputs, mat d_output, double la
 	mymap["dbhh"] = dbhh;
 
 	return mymap;
+}
+
+mat HiddenLayer::map2mat(map<int, mat> mp)
+{
+	// mp的size()确定mat的行数；mp中任一个value（是一个行mat）的长度确定mat的列数
+	mat mpmat = mat(mp.size(), mp[0].n_cols);
+
+	mat tmp;
+	for (int i = 0; i < mp.size(); i++)
+	{
+		// 取得mp[i]的value
+		tmp = mp[i]; // mp的每个value都是一个 行mat
+
+		// 赋给mpmat
+		for (int j=0; j<tmp.n_cols; j++) 
+		{
+			mpmat[i, j]= tmp[j];
+		}
+	}
+
+	return mpmat;
+}
+
+void HiddenLayer::saveParams(string title)
+{
+	this->Wf.save("Wf"+title+".txt", file_type::raw_ascii);
+	this->Wi.save("Wi"+title+".txt", file_type::raw_ascii);
+	this->Wc.save("Wc"+title+".txt", file_type::raw_ascii);
+	this->Wo.save("Wo"+title+".txt", file_type::raw_ascii);
+	this->Whh.save("Whh"+title+".txt", file_type::raw_ascii);
+
+	this->bf.save("bf" + title + ".txt", file_type::raw_ascii);
+	this->bi.save("bi" + title + ".txt", file_type::raw_ascii);
+	this->bc.save("bc" + title + ".txt", file_type::raw_ascii);
+	this->bo.save("bo" + title + ".txt", file_type::raw_ascii);
+	this->bhh.save("bhh" + title + ".txt", file_type::raw_ascii);
+
+}
+
+void HiddenLayer::loadParams(string title)
+{
+	this->Wf.load("Wf" + title + ".txt", file_type::raw_ascii);
+	this->Wi.load("Wi" + title + ".txt", file_type::raw_ascii);
+	this->Wc.load("Wc" + title + ".txt", file_type::raw_ascii);
+	this->Wo.load("Wo" + title + ".txt", file_type::raw_ascii);
+	this->Whh.load("Whh" + title + ".txt", file_type::raw_ascii);
+
+	this->bf.load("bf" + title + ".txt", file_type::raw_ascii);
+	this->bi.load("bi" + title + ".txt", file_type::raw_ascii);
+	this->bc.load("bc" + title + ".txt", file_type::raw_ascii);
+	this->bo.load("bo" + title + ".txt", file_type::raw_ascii);
+	this->bhh.load("bhh" + title + ".txt", file_type::raw_ascii);
 }
 
 mat HiddenLayer::sigmoid(arma::mat mx)
