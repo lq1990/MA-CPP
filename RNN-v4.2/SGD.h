@@ -12,7 +12,7 @@ public:
 
 
 	// 通过 AOptimizer 继承
-	virtual void optimize(mat & P, double alpha, mat dP, mat & mdP, int i) override;
+	virtual void optimize(Params * P, double alpha, DParams* dP, MDParams* mdP, int i) override;
 
 };
 

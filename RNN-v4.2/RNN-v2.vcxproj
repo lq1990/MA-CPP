@@ -125,15 +125,21 @@
   <ItemGroup>
     <ClCompile Include="Adagrad.cpp" />
     <ClCompile Include="client.cpp" />
+    <ClCompile Include="DParams.cpp" />
     <ClCompile Include="HiddenLayer.cpp" />
+    <ClCompile Include="MDParams.cpp" />
+    <ClCompile Include="Params.cpp" />
     <ClCompile Include="RNN.cpp" />
     <ClCompile Include="SGD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Adagrad.h" />
     <ClInclude Include="AOptimizer.h" />
+    <ClInclude Include="DParams.h" />
     <ClInclude Include="HiddenLayer.h" />
+    <ClInclude Include="MDParams.h" />
     <ClInclude Include="MyLib.h" />
+    <ClInclude Include="Params.h" />
     <ClInclude Include="RNN.h" />
     <ClInclude Include="SGD.h" />
   </ItemGroup>

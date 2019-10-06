@@ -30,6 +30,15 @@
     <ClCompile Include="HiddenLayer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Params.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DParams.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MDParams.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyLib.h">
@@ -48,6 +57,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="HiddenLayer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Params.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DParams.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MDParams.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

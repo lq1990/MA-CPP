@@ -382,7 +382,7 @@ int main()
 	
 	// -----------------------------
 
-	double optLambda = 0.0; // LSTM, start: 0.23, gearShift: 
+	double optLambda = 0.1; // LSTM, start: 0.23, gearShift: 
 	train_rnn_withALambda("listStructTrain", optLambda);
 
 	/*
@@ -409,6 +409,22 @@ int main()
 	// epoches: 21, threads: 1  => dt 73.0s
 
 	// ======================== try =======================
+	// arma::mat 对col的set ，可以 :)
+	/*
+	mat m1 = mat(3,5000, fill::randu);
+	//m1.print("m1: ");
+
+	mat m2 = mat(1, 5000, fill::zeros);
+	m1.row(1) = m2;
+	//m1.print("m1 after");
+	*/
+
+
+
+
+
+	// 类A的static属性是一个 类B实例
+	//RNN::hiddenLayer1->Wf.print("Wf"); // 30,20
 
 	// LSTM
 	/*LSTM lstm = LSTM();

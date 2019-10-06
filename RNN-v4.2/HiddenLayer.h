@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include "Params.h"
 
 using namespace std;
 using namespace arma;
@@ -23,12 +24,14 @@ class HiddenLayer
 {
 public:
 	/*
-		n_features:
+		n_input_dim: 对于第一个hidden而言，n_input_dim=n_features
 		n_hidden_cur: 当前hidden的neurons数目
 		n_hidden_next: 当前hidden的下一个hidden的neurons数目
 			特例：对于最后一个隐层而言，n_hidden_next=n_output_classes
+
+		HiddenLayer实例化时：需要用Params中参数进行初始化自己的参数
 	*/
-	HiddenLayer(int n_features, int n_hidden_cur, int n_hidden_next); // 构造实例同时 初始化实例的属性即参数
+	HiddenLayer(int n_input_dim, int n_hidden_cur, int n_hidden_next, Params* ps); // 构造实例同时 初始化实例的属性即参数
 	~HiddenLayer();
 
 	/*
@@ -37,7 +40,7 @@ public:
 
 		Xs: 第一个隐层的输入时Xs, 其它隐层输入是它前一个隐层的 Hs
 	*/
-	map<int, mat> hiddenForward(mat inputs);
+	map<int, mat> hiddenForward(mat inputs, mat hprev, mat cprev);
 
 
 	/*
@@ -64,8 +67,10 @@ public:
 	/*
 		以map的key    为mat的行index
 		key对应的value为mat的行中的数据
+
+		key: [startIdx, endIdx]
 	*/
-	static mat map2mat(map<int, mat> mp);
+	static mat map2mat(map<int, mat> mp, int startIdx, int endIdx);
 
 	/*
 		title: 1,2
@@ -78,6 +83,8 @@ private:
 	mat sigmoid(arma::mat mx);
 
 public: 
+	/*
+	*/
 	// 以下为实例属性，属性是某个隐层专有，这些参数也是待训练
 	mat Wf, Wi, Wc, Wo; // weight of forget gate, input gate, candidate cell, output gate
 	mat Whh; // weight between hidden-hidden, 特例最后一个隐层的Whh=Why，反传中用到Whh
@@ -91,7 +98,7 @@ private:
 		h_fs, h_is, h_os, h_cs; // hidden gate state
 
 private:
-	int n_features;
+	int n_input_dim;
 	int n_hidden_cur;
 	int n_hidden_next;
 

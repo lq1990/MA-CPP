@@ -13,6 +13,9 @@
 #include <vector>
 #include "AOptimizer.h"
 #include "HiddenLayer.h"
+#include "Params.h"
+#include "DParams.h"
+#include "MDParams.h"
 
 
 using namespace std;
@@ -44,6 +47,8 @@ public:
 	~RNN();
 
 	static void clip(mat& matrix, double maxVal, double minVal);
+
+	static void clip(DParams* dP, double maxVal, double minVal);
 
 	/*
 		按照 n_output_classes 将score生成 一定长度的 onehot vector
@@ -144,9 +149,10 @@ public:
 	static std::mutex mtx;
 
 
-private:
-	static HiddenLayer* hiddenLayer1;
-	static HiddenLayer* hiddenLayer2;
+public:
+	static Params* ph1; // params of hidden 1
+	static Params* ph2;
+
 
 
 };

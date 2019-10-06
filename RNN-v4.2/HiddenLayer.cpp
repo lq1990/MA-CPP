@@ -2,14 +2,28 @@
 
 
 
-HiddenLayer::HiddenLayer(int n_features, int n_hidden_cur, int n_hidden_next)
+HiddenLayer::HiddenLayer(int n_input_dim, int n_hidden_cur, int n_hidden_next, Params* ps)
 {
-	this->n_features = n_features;
+
+	this->n_input_dim = n_input_dim;
 	this->n_hidden_cur = n_hidden_cur;
 	this->n_hidden_next = n_hidden_next;
 
+	this->Wf = ps->Wf;
+	this->Wi = ps->Wi;
+	this->Wc = ps->Wc;
+	this->Wo = ps->Wo;
+	this->Whh = ps->Whh;
+
+	this->bf = ps->bf;
+	this->bi = ps->bi;
+	this->bc = ps->bc;
+	this->bo = ps->bo;
+	this->bhh = ps->bhh;
+
+	/*
 	int H = n_hidden_cur;
-	int Z = n_features + n_hidden_cur;
+	int Z = n_input_dim + n_hidden_cur;
 	int H_next = n_hidden_next;
 
 	this->Wf = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden forget
@@ -23,6 +37,7 @@ HiddenLayer::HiddenLayer(int n_features, int n_hidden_cur, int n_hidden_next)
 	this->bc = arma::zeros(1, H);
 	this->bo = arma::zeros(1, H);
 	this->bhh = arma::zeros(1, H_next);
+	*/
 }
 
 
@@ -30,11 +45,15 @@ HiddenLayer::~HiddenLayer()
 {
 }
 
-map<int, mat> HiddenLayer::hiddenForward(mat inputs)
+map<int, mat> HiddenLayer::hiddenForward(mat inputs, mat hprev, mat cprev)
 {
+	hs[-1] = hprev;
+	cs[-1] = cprev;
+
 	// inputs.n_rows 是 samples的数量，inputs.n_cols 是 features数量
 	for (int t = 0; t < inputs.n_rows; t++)
 	{
+
 		xs[t] = inputs.row(t); // (1,d)
 		X[t] = arma::join_horiz(hs[t - 1], xs[t]); // X: concat [h_old, curx] (1,h+d)
 
@@ -188,22 +207,19 @@ map<string, mat> HiddenLayer::hiddenBackward(mat inputs, map<int, mat> d_outputs
 	return mymap;
 }
 
-mat HiddenLayer::map2mat(map<int, mat> mp)
+mat HiddenLayer::map2mat(map<int, mat> mp, int startIdx, int endIdx)
 {
 	// mp的size()确定mat的行数；mp中任一个value（是一个行mat）的长度确定mat的列数
-	mat mpmat = mat(mp.size(), mp[0].n_cols);
+	mat mpmat = mat(endIdx-startIdx+1, mp[0].n_cols);
 
-	mat tmp;
-	for (int i = 0; i < mp.size(); i++)
+	int row = 0;
+	for (int i = startIdx; i <= endIdx; i++)
 	{
 		// 取得mp[i]的value
-		tmp = mp[i]; // mp的每个value都是一个 行mat
+		// tmp = mp[i]; // mp的每个value都是一个 行mat
 
 		// 赋给mpmat
-		for (int j=0; j<tmp.n_cols; j++) 
-		{
-			mpmat[i, j]= tmp[j];
-		}
+		mpmat.row(row++) = mp[i];
 	}
 
 	return mpmat;

@@ -2,20 +2,23 @@
 
 std::mutex RNN::mtx;
 
-int		RNN::total_epoches = 501;
-double	RNN::alpha = 0.1;
+int		RNN::total_epoches = 201;
+double	RNN::alpha = 0.02;
 double	RNN::score_max = 9.4; // start: 8.9, gearShiftUp: 9.4
 double	RNN::score_min = 4.9; // start: 6.0, gearShiftUp: 4.9
 int		RNN::n_features = 20;
-int		RNN::n_hidden = 30;
+int		RNN::n_hidden = 50;
 int		RNN::n_output_classes = 10;
 
 int RNN::tmp = 11; // 试验是否可以 实例操作静态对象
 
+/*
 HiddenLayer* RNN::hiddenLayer1 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_hidden);
-HiddenLayer* RNN::hiddenLayer2 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_output_classes);
+HiddenLayer* RNN::hiddenLayer2 = new HiddenLayer(RNN::n_hidden, RNN::n_hidden, RNN::n_output_classes);
+*/
 
-
+Params* RNN::ph1 = new Params(RNN::n_features, RNN::n_hidden, RNN::n_hidden);
+Params* RNN::ph2 = new Params(RNN::n_hidden, RNN::n_hidden, RNN::n_output_classes);
 
 
 /*
@@ -52,10 +55,7 @@ RNN::~RNN()
 void RNN::trainMultiThread(vector<SceStruct> listStructTrain, 
 	AOptimizer* opt, int n_threads, double lambda)
 {
-	HiddenLayer* hiddenLayer1 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_hidden);
-	HiddenLayer* hiddenLayer2 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_output_classes); // 对于最后一个隐层而言，n_hidden_next=n_output_classes
-
-
+	/*
 	// init memory，用于在 Adagrad中，计算L2范式，平方 求和 开根
 	mat mdWf1 = arma::zeros<mat>(hiddenLayer1->Wf.n_rows, hiddenLayer1->Wf.n_cols);
 	mat mdWi1 = arma::zeros<mat>(hiddenLayer1->Wi.n_rows, hiddenLayer1->Wi.n_cols);
@@ -78,6 +78,13 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 	mat mdbc2 = arma::zeros<mat>(hiddenLayer2->bc.n_rows, hiddenLayer2->bc.n_cols);
 	mat mdbo2 = arma::zeros<mat>(hiddenLayer2->bo.n_rows, hiddenLayer2->bo.n_cols);
 	mat mdby = arma::zeros<mat>(hiddenLayer2->bhh.n_rows, hiddenLayer2->bhh.n_cols);
+	*/
+
+	// memory of dP, used for Adagrad
+	MDParams* mdPh1 = new MDParams();
+	MDParams* mdPh2 = new MDParams();
+	mdPh1->setZeros(RNN::ph1);
+	mdPh2->setZeros(RNN::ph2);
 
 	//mat hprev = zeros<mat>(this->n_hidden, 1); // init hprev
 	mat hprev, cprev;
@@ -90,6 +97,8 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 	vector<double> log_prediction; // 与log_target对应，记录所有的模型 prediction
 
 	vector<future<LossFunctionReturn>> vec_future; // 存储多线程的vector, future的泛型是 方法返回值
+
+	/*
 	mat dWf1Sum, dbf1Sum;
 	mat dWi1Sum, dbi1Sum;
 	mat dWc1Sum, dbc1Sum;
@@ -101,6 +110,11 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 	mat dWc2Sum, dbc2Sum;
 	mat dWo2Sum, dbo2Sum;
 	mat dWySum, dbySum;
+	*/
+
+	DParams* dPh1 = new DParams();
+	DParams* dPh2 = new DParams();
+
 	mat loss;
 
 	/*
@@ -127,6 +141,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				arma::mat matData = ascenario->matDataZScore; // 使用 zscore norm 的matData
 				double score = ascenario->score;
 
+
 				// lstm中默认 行向量
 				hprev = arma::zeros<mat>(1, this->n_hidden); // for each scenario, hprev is 0
 				cprev = arma::zeros<mat>(1, this->n_hidden); // for each scenario, hprev is 0
@@ -135,6 +150,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 			}
 
 			// 清零。在多个线程计算之后，get结果 dW db
+			/*
 			dWf1Sum = arma::zeros<mat>(hiddenLayer1->Wf.n_rows, hiddenLayer1->Wf.n_cols);
 			dWi1Sum = arma::zeros<mat>(hiddenLayer1->Wi.n_rows, hiddenLayer1->Wi.n_cols);
 			dWc1Sum = arma::zeros<mat>(hiddenLayer1->Wc.n_rows, hiddenLayer1->Wc.n_cols);
@@ -156,6 +172,9 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 			dbc2Sum = arma::zeros<mat>(hiddenLayer2->bc.n_rows, hiddenLayer2->bc.n_cols);
 			dbo2Sum = arma::zeros<mat>(hiddenLayer2->bo.n_rows, hiddenLayer2->bo.n_cols);
 			dbySum = arma::zeros<mat> (hiddenLayer2->bhh.n_rows, hiddenLayer2->bhh.n_cols);
+			*/
+			dPh1->setZeros(RNN::ph1);
+			dPh2->setZeros(RNN::ph2);
 
 			for (int s = 0; s < vec_future.size(); s++)
 			{
@@ -165,28 +184,27 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				map<string, mat> deltaParamsH1 = ret.deltaParamsH1;
 				map<string, mat> deltaParamsH2 = ret.deltaParamsH2;
 
+				dPh1->dWfSum += deltaParamsH1["dWf"];
+				dPh1->dWiSum += deltaParamsH1["dWi"];
+				dPh1->dWcSum += deltaParamsH1["dWc"];
+				dPh1->dWoSum += deltaParamsH1["dWo"];
+				dPh1->dWhhSum += deltaParamsH1["dWhh"];
+				dPh1->dbfSum += deltaParamsH1["dbf"];
+				dPh1->dbiSum += deltaParamsH1["dbi"];
+				dPh1->dbcSum += deltaParamsH1["dbc"];
+				dPh1->dboSum += deltaParamsH1["dbo"];
+				dPh1->dbhhSum += deltaParamsH1["dbhh"];
 
-				dWf1Sum += deltaParamsH1["dWf"];
-				dWi1Sum += deltaParamsH1["dWi"];
-				dWc1Sum += deltaParamsH1["dWc"];
-				dWo1Sum += deltaParamsH1["dWo"];
-				dWhhSum += deltaParamsH1["dWhh"];
-				dbf1Sum += deltaParamsH1["dbf"];
-				dbi1Sum += deltaParamsH1["dbi"];
-				dbc1Sum += deltaParamsH1["dbc"];
-				dbo1Sum += deltaParamsH1["dbo"];
-				dbhhSum += deltaParamsH1["dbhh"];
-
-				dWf2Sum += deltaParamsH2["dWf"];
-				dWi2Sum += deltaParamsH2["dWi"];
-				dWc2Sum += deltaParamsH2["dWc"];
-				dWo2Sum += deltaParamsH2["dWo"];
-				dWySum += deltaParamsH2["dWhh"];
-				dbf2Sum += deltaParamsH2["dbf"];
-				dbi2Sum += deltaParamsH2["dbi"];
-				dbc2Sum += deltaParamsH2["dbc"];
-				dbo2Sum += deltaParamsH2["dbo"];
-				dbySum += deltaParamsH2["dbhh"];
+				dPh2->dWfSum += deltaParamsH2["dWf"];
+				dPh2->dWiSum += deltaParamsH2["dWi"];
+				dPh2->dWcSum += deltaParamsH2["dWc"];
+				dPh2->dWoSum += deltaParamsH2["dWo"];
+				dPh2->dWhhSum += deltaParamsH2["dWhh"];
+				dPh2->dbfSum += deltaParamsH2["dbf"];
+				dPh2->dbiSum += deltaParamsH2["dbi"];
+				dPh2->dbcSum += deltaParamsH2["dbc"];
+				dPh2->dboSum += deltaParamsH2["dbo"];
+				dPh2->dbhhSum += deltaParamsH2["dbhh"];
 
 				// store in vec
 				lossAllVec.push_back(loss(0, 0));
@@ -202,8 +220,9 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 
 			// clip
 			double maxVal, minVal;
-			maxVal = 5.0;
-			minVal = -5.0;
+			maxVal = 3.0;
+			minVal = -3.0;
+			/*
 			clip(dWf1Sum, maxVal, minVal);
 			clip(dWi1Sum, maxVal, minVal);
 			clip(dWc1Sum, maxVal, minVal);
@@ -225,10 +244,14 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 			clip(dbc2Sum, maxVal, minVal);
 			clip(dbo2Sum, maxVal, minVal);
 			clip(dbySum, maxVal, minVal);
+			*/
+			clip(dPh1, maxVal, minVal);
+			clip(dPh2, maxVal, minVal);
 			
 
 			// update params。把每个场景看做一个样本的话，则是sgd。
-			opt->optimize(hiddenLayer1->Wf, this->alpha, dWf1Sum, mdWf1, i);
+			/*
+			opt->optimize(ph1, this->alpha, dWf1Sum, mdWf1, i);
 			opt->optimize(hiddenLayer1->Wi, this->alpha, dWi1Sum, mdWi1, i);
 			opt->optimize(hiddenLayer1->Wc, this->alpha, dWc1Sum, mdWc1, i);
 			opt->optimize(hiddenLayer1->Wo, this->alpha, dWo1Sum, mdWo1, i);
@@ -249,6 +272,9 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 			opt->optimize(hiddenLayer2->bc, this->alpha, dbc2Sum, mdbc2, i);
 			opt->optimize(hiddenLayer2->bo, this->alpha, dbo2Sum, mdbo2, i);
 			opt->optimize(hiddenLayer2->bhh, this->alpha, dbySum, mdby, i);
+			*/
+			opt->optimize(ph1, this->alpha, dPh1, mdPh1, i);
+			opt->optimize(ph2, this->alpha, dPh2, mdPh2, i);
 
 		}
 
@@ -258,7 +284,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 		loss_mean_each_epoch.push_back(loss_this_epoch);
 		accuracy_each_epoch.push_back(accu_this_epoch);
 
-		if (i % 10 == 0)
+		if (i % 1 == 0)
 		{
 			cout << "lambda: " << lambda << ", epoch: " << i 
 				<< ", loss_mean_this_epoch: " << loss_this_epoch
@@ -302,6 +328,16 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 	double score, double lambda, mat hprev, mat cprev,
 	vector<double>& true_false, vector<double>& log_target, vector<double>& log_prediction)
 {
+	/* 
+		多线程情况下，必须每个线程都有自己的HiddenLayer实例，才能保证HiddenLayer中属性数据线程独有.
+		通过前传、反传，得到dP return。
+		在train fn中，多个线程得到的dP sum. 最终用sum进行优化p
+
+	*/
+	HiddenLayer* hiddenLayer1 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_hidden, RNN::ph1);
+	HiddenLayer* hiddenLayer2 = new HiddenLayer(RNN::n_hidden, RNN::n_hidden, RNN::n_output_classes, RNN::ph2);
+
+
 	
 	// 注：参数要在这个函数体外部提前初始化。
 	int idx1 = -1;
@@ -337,10 +373,11 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 
 	// ===================== forward pass =========================
 		// 把场景数据inputs传给H1
-		hiddenLayer1->hiddenForward(inputs);
+		hiddenLayer1->hiddenForward(inputs, hprev, cprev);
 
 		// 把H1计算结果hs传给H2
-		hiddenLayer2->hiddenForward(HiddenLayer::map2mat(hiddenLayer1->hs));
+		hiddenLayer2->hiddenForward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), hprev, cprev); // map2mat()中的hs[idx=-1,0,1,...]第一行是tprev状态的，不用
+
 
 		// 计算output // 在最后一个时刻，last hidden 的hs[t] 传给output
 		int t = inputs.n_rows - 1;
@@ -365,6 +402,7 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 			}
 			mtx.unlock();
 
+
 	// =============== BPTT ============================
 	/*
 	mat dWf, dbf;
@@ -385,12 +423,13 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 	dby = arma::zeros<mat>(by.n_rows, by.n_cols);
 	*/
 
-	// dnext init
-	mat dhnext = arma::zeros<mat>(hiddenLayer1->hs[0].n_rows, hiddenLayer1->hs[0].n_cols);
-	mat dcnext = arma::zeros<mat>(hiddenLayer1->cs[0].n_rows, hiddenLayer1->cs[0].n_cols);
-
 
 	map<int, mat> dy;
+	// init dy
+	for (int i=0; i < inputs.n_rows; i++) 
+	{
+		dy[i] = zeros<mat>(1, RNN::n_output_classes);
+	}
 	
 	t = inputs.n_rows - 1;
 		
@@ -400,22 +439,20 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 
 			// H2
 			map<int, mat> d_outputs_out2;
-			map<string,mat> deltaParamsH2 = hiddenLayer2->hiddenBackward(HiddenLayer::map2mat(hiddenLayer1->hs), dy, d_outputs_out2, lambda);
+			map<string,mat> deltaParamsH2 = hiddenLayer2->hiddenBackward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), dy, d_outputs_out2, lambda);
 
 			// H1
 			map<int, mat> d_outputs_out1;
 			map<string, mat> deltaParamsH1 = hiddenLayer1->hiddenBackward(inputs, d_outputs_out2, d_outputs_out1, lambda);
 
 
-	// free
-	delete hiddenLayer1;
-	delete hiddenLayer2;
-
-
 	LossFunctionReturn ret;
 	ret.loss = loss;
 	ret.deltaParamsH1 = deltaParamsH1;
 	ret.deltaParamsH2 = deltaParamsH2;
+
+	delete hiddenLayer1;
+	delete hiddenLayer2;
 
 	return ret;
 }
@@ -478,8 +515,8 @@ void RNN::predictOneScenario(mat Wf, mat Wi, mat Wc, mat Wo, mat Wy,
 
 void RNN::saveParams()
 {
-	hiddenLayer1->saveParams("1");
-	hiddenLayer2->saveParams("2");
+	RNN::ph1->save("1");
+	RNN::ph2->save("2");
 
 	mat loss_all = MyLib<double>::vector2mat(this->lossAllVec);
 	mat loss_mean_each_epoch = MyLib<double>::vector2mat(this->loss_mean_each_epoch);
@@ -530,6 +567,21 @@ void RNN::clip(mat& matrix, double maxVal, double minVal)
 			return val;
 		}
 	});
+}
+
+void RNN::clip(DParams * dP, double maxVal, double minVal)
+{
+	RNN::clip(dP->dWfSum, maxVal, minVal);
+	RNN::clip(dP->dWiSum, maxVal, minVal);
+	RNN::clip(dP->dWcSum, maxVal, minVal);
+	RNN::clip(dP->dWoSum, maxVal, minVal);
+	RNN::clip(dP->dWhhSum, maxVal, minVal);
+
+	RNN::clip(dP->dbfSum, maxVal, minVal);
+	RNN::clip(dP->dbiSum, maxVal, minVal);
+	RNN::clip(dP->dbcSum, maxVal, minVal);
+	RNN::clip(dP->dboSum, maxVal, minVal);
+	RNN::clip(dP->dbhhSum, maxVal, minVal);
 }
 
 mat RNN::score2onehot(double score, int& idx1)
@@ -587,8 +639,8 @@ void RNN::loadParams()
 	this->bh = bh;
 	this->by = by;*/
 
-	hiddenLayer1->loadParams("1");
-	hiddenLayer2->loadParams("2");
+	ph1->load("1");
+	ph2->load("2");
 
 	this->tmp = 33; // 可以由实例操作 静态变量
 
