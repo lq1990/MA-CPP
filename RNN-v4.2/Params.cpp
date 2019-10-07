@@ -9,11 +9,21 @@ Params::Params(int n_input_dim, int n_hidden_cur, int n_hidden_next)
 	int H_next = n_hidden_next;
 
 	// 初始化随机数。也可以load本地参数进行初始化
+	/*
+	*/
 	this->Wf = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden forget
 	this->Wi = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden input
 	this->Wc = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden candidate cell
 	this->Wo = arma::randn(Z, H) / sqrt(Z / 2.); // W 包含h x, hidden output
 	this->Whh = arma::randn(H, H_next) / sqrt(H_next / 2.); //  W of hidden-hidden
+
+	/*
+	this->Wf = arma::randn(Z, H) * 0.01; // W 包含h x, hidden forget
+	this->Wi = arma::randn(Z, H) * 0.01; // W 包含h x, hidden input
+	this->Wc = arma::randn(Z, H) * 0.01; // W 包含h x, hidden candidate cell
+	this->Wo = arma::randn(Z, H) * 0.01; // W 包含h x, hidden output
+	this->Whh = arma::randn(H, H_next) * 0.01; //  W of hidden-hidden
+	*/
 
 	this->bf = arma::zeros(1, H); // 可看出来，默认 行向量
 	this->bi = arma::zeros(1, H);

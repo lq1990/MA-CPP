@@ -78,8 +78,7 @@ public:
 	void trainMultiThread(vector<SceStruct> listStructTrain, AOptimizer* opt, int n_threads, double lambda);
 
 	static void predictOneScenario(
-		mat Wf, mat Wi, mat Wc, mat Wo, mat Wy,
-		mat bf, mat bi, mat bc, mat bo, mat by,
+		Params* ph1, Params* ph2,
 		mat inputs,
 		double score, double& loss, int& idx_target, int& idx_prediction);
 
@@ -120,6 +119,7 @@ public:
 	static int total_epoches;
 	static double score_max;
 	static double score_min;
+	static double dropout;
 	// score_max, score_min 作用：
 	// 结合n_output_classes ，将具体的一个场景的score转换为 onehot
 	// eg. max: 9.0, min:6.1, 分3份，

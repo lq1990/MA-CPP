@@ -45,8 +45,13 @@ HiddenLayer::~HiddenLayer()
 {
 }
 
-map<int, mat> HiddenLayer::hiddenForward(mat inputs, mat hprev, mat cprev)
+// 注意：重载了hiddenForward, 要修改的话，两个都得改
+map<int, mat> HiddenLayer::hiddenForward(mat inputs, mat hprev, mat cprev, double dropout_prob)
 {
+	// 生成dropout_vector [0, 1, ...] length=n_hidden_cur
+	mat dropout_vec = HiddenLayer::generateDropoutVector(this->n_hidden_cur, dropout_prob);
+
+
 	hs[-1] = hprev;
 	cs[-1] = cprev;
 
@@ -59,13 +64,21 @@ map<int, mat> HiddenLayer::hiddenForward(mat inputs, mat hprev, mat cprev)
 
 		//hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
 
-		h_fs[t] = this->sigmoid(X[t] * Wf + bf); // (1,h+d)(h+d,h) = (1,h)
-		h_is[t] = this->sigmoid(X[t] * Wi + bi);
-		h_os[t] = this->sigmoid(X[t] * Wo + bo);
-		h_cs[t] = arma::tanh(X[t] * Wc + bc);
+		// h_fs: (1,h+d)(h+d,h) = (1,h)
+		h_fs[t] = (this->sigmoid(X[t] * Wf + bf)) % dropout_vec / (1. - dropout_prob); 
+		h_is[t] = (this->sigmoid(X[t] * Wi + bi)) % dropout_vec / (1. - dropout_prob);
+		h_os[t] = (this->sigmoid(X[t] * Wo + bo)) % dropout_vec / (1. - dropout_prob);
+		h_cs[t] = (arma::tanh(X[t] * Wc + bc)) % dropout_vec / (1. - dropout_prob);
 
-		cs[t] = h_fs[t] % cs[t - 1] + h_is[t] % h_cs[t]; // (1,h)
-		hs[t] = h_os[t] % arma::tanh(cs[t]); // (1,h)
+		cs[t] = (h_fs[t] % cs[t - 1] + h_is[t] % h_cs[t]) % dropout_vec / (1. - dropout_prob); // (1,h)
+		hs[t] = (h_os[t] % arma::tanh(cs[t])) % dropout_vec / (1. - dropout_prob); // (1,h)
+
+		// dropout: 前传时，随机概率让部分neuron(detector)不工作，
+		//		实现方法：neuron激活值为0
+		
+		// 不确定：是否只需要改 hs一个，还是所有隐层的都改 
+		// 反传应该不用改
+
 
 		/*
 		
@@ -96,6 +109,36 @@ map<int, mat> HiddenLayer::hiddenForward(mat inputs, mat hprev, mat cprev)
 		}
 
 		*/
+
+	}
+
+
+	return hs;
+}
+
+map<int, mat> HiddenLayer::hiddenForward(map<int, mat> inputs, mat hprev, mat cprev, double dropout_prob)
+{
+	// 生成dropout_vector [0, 1, ...] length=n_hidden_cur
+	mat dropout_vec = HiddenLayer::generateDropoutVector(this->n_hidden_cur, dropout_prob);
+
+	hs[-1] = hprev;
+	cs[-1] = cprev;
+
+	// inputs.n_rows 是 samples的数量，inputs.n_cols 是 features数量
+	for (int t = 0; t < inputs.size()-1; t++) // size-1因为：map中[-1,0,1...] 多一个-1
+	{
+		xs[t] = inputs[t]; // (1,d)
+		X[t] = arma::join_horiz(hs[t - 1], xs[t]); // X: concat [h_old, curx] (1,h+d)
+
+		//hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
+
+		h_fs[t] = (this->sigmoid(X[t] * Wf + bf)) % dropout_vec / (1. - dropout_prob);
+		h_is[t] = (this->sigmoid(X[t] * Wi + bi)) % dropout_vec / (1. - dropout_prob);
+		h_os[t] = (this->sigmoid(X[t] * Wo + bo)) % dropout_vec / (1. - dropout_prob);
+		h_cs[t] = (arma::tanh(X[t] * Wc + bc)) % dropout_vec / (1. - dropout_prob);
+
+		cs[t] = (h_fs[t] % cs[t - 1] + h_is[t] % h_cs[t]) % dropout_vec / (1. - dropout_prob); // (1,h)
+		hs[t] = (h_os[t] % arma::tanh(cs[t])) % dropout_vec / (1. - dropout_prob); // (1,h)
 
 	}
 
@@ -207,6 +250,111 @@ map<string, mat> HiddenLayer::hiddenBackward(mat inputs, map<int, mat> d_outputs
 	return mymap;
 }
 
+map<string, mat> HiddenLayer::hiddenBackward(map<int, mat> inputs, map<int, mat> d_outputs_in, map<int, mat>& d_outputs_out, double lambda0)
+{
+	mat dWf, dbf;
+	mat dWi, dbi;
+	mat dWc, dbc;
+	mat dWo, dbo;
+	mat dWhh, dbhh; // dWhh对于Whh的优化量
+
+	dWf = arma::zeros<mat>(Wf.n_rows, Wf.n_cols);
+	dWi = arma::zeros<mat>(Wi.n_rows, Wi.n_cols);
+	dWc = arma::zeros<mat>(Wc.n_rows, Wc.n_cols);
+	dWo = arma::zeros<mat>(Wo.n_rows, Wo.n_cols);
+	dWhh = arma::zeros<mat>(Whh.n_rows, Whh.n_cols);
+	dbf = arma::zeros<mat>(bf.n_rows, bf.n_cols);
+	dbi = arma::zeros<mat>(bi.n_rows, bi.n_cols);
+	dbc = arma::zeros<mat>(bc.n_rows, bc.n_cols);
+	dbo = arma::zeros<mat>(bo.n_rows, bo.n_cols);
+	dbhh = arma::zeros<mat>(bhh.n_rows, bhh.n_cols);
+
+	// dnext init
+	mat dhnext = arma::zeros<mat>(hs[0].n_rows, hs[0].n_cols);
+	mat dcnext = arma::zeros<mat>(cs[0].n_rows, cs[0].n_cols);
+	mat dxnext;
+
+	mat dh, dho, dc, dhf, dhi, dhc;
+	mat dXf, dXi, dXo, dXc, dX;
+
+	// 反向遍历每个time step
+	for (int t = (int)inputs.size() - 1-1; t >= 0; t--)
+	{
+		double lambda = (t == inputs.size()-1 - 1) ? lambda0 : 0.; // 一次反传中只需要一次 惩罚项相加，无论time steps有多少
+
+
+		// hidden to output (hidden-hidden) gradient
+		dWhh += hs[t].t() * d_outputs_in[t] + lambda * Whh;
+		dbhh += d_outputs_in[t];
+
+		dh = d_outputs_in[t] * Whh.t() + dhnext; // adding dhnext
+
+		// gradient for ho in h = ho * tanh(c)
+		dho = arma::tanh(cs[t]) % dh;
+		dho = MyLib<mat>::dsigmoid(h_os[t]) % dho;
+
+		// gradient for c in h = ho * tanh(c), adding dcnext
+		dc = h_os[t] % dh % MyLib<mat>::dtanh(cs[t]);
+		dc = dc + dcnext;
+
+		// gradient for hf in c = hf * c_old + hi * hc
+		dhf = cs[t - 1] % dc; // c_old => cs[t-1]
+		dhf = MyLib<mat>::dsigmoid(h_fs[t]) % dhf;
+
+		// gradient for hi in c = hf * c_old + hi * hc
+		dhi = h_cs[t] % dc;
+		dhi = MyLib<mat>::dsigmoid(h_is[t]) % dhi;
+
+		// gradient for hc in c = hf * c_old + hi * hc
+		dhc = h_is[t] % dc;
+		dhc = MyLib<mat>::dtanh(h_cs[t]) % dhc;
+
+		// gate gradinets
+		dWf += X[t].t() * dhf + lambda * Wf;
+		dbf += dhf;
+		dXf = dhf * Wf.t();
+
+		dWi += X[t].t() * dhi + lambda * Wi;
+		dbi += dhi;
+		dXi = dhi * Wi.t();
+
+		dWo += X[t].t() * dho + lambda * Wo;
+		dbo += dho;
+		dXo = dho * Wo.t();
+
+		dWc += X[t].t() * dhc + lambda * Wc;
+		dbc += dhc;
+		dXc = dhc * Wc.t();
+
+		// as X was used in multiple gates
+		dX = dXo + dXc + dXi + dXf;
+
+		// update dhnext dcnext
+		dhnext = dX.cols(0, this->n_hidden_cur - 1); // 左闭右闭[]
+		dxnext = dX.cols(this->n_hidden_cur, dX.n_cols - 1);
+		dcnext = h_fs[t] % dc;
+
+		// 本hidden layer的dxnext会传给上一个hidden layer，要传递的值用 d_output_out存储
+		d_outputs_out[t] = dxnext;
+	}
+
+
+	map<string, mat> mymap;
+	mymap["dWf"] = dWf;
+	mymap["dWi"] = dWi;
+	mymap["dWc"] = dWc;
+	mymap["dWo"] = dWo;
+	mymap["dWhh"] = dWhh;
+	mymap["dbf"] = dbf;
+	mymap["dbi"] = dbi;
+	mymap["dbc"] = dbc;
+	mymap["dbo"] = dbo;
+	mymap["dbhh"] = dbhh;
+
+	return mymap;
+}
+
+
 mat HiddenLayer::map2mat(map<int, mat> mp, int startIdx, int endIdx)
 {
 	// mp的size()确定mat的行数；mp中任一个value（是一个行mat）的长度确定mat的列数
@@ -260,5 +408,29 @@ mat HiddenLayer::sigmoid(arma::mat mx)
 {
 	// sigmoid = 1 / (1+exp(-x))
 	return 1. / (1 + arma::exp(-mx));
+}
+
+mat HiddenLayer::generateDropoutVector(int len, double prob)
+{
+	mat vec = mat(1, len, fill::ones);
+
+	// 产生随机种子
+	srand((int)time(0));
+
+	// 思路：生成[0, len-1]之间的 (len*prob) 个随机数 作为index。index出的vec元素为0
+	set<int> idxSet;
+	while (idxSet.size() < len*prob)
+	{
+		int randValAsIdx = rand() % len;
+		idxSet.insert(randValAsIdx);
+	}
+
+	set<int>::iterator it;
+	for (it=idxSet.begin(); it != idxSet.end(); it++)
+	{
+		vec.col(*it) = 0;
+	}
+
+	return vec;
 }
 

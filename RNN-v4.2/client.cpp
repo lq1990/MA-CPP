@@ -121,7 +121,8 @@ void loadWbToPredictListStruct(const char* fileName)
 
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
 
-	//// read W b
+	//// load W b
+	/*
 	mat Wf, Wi, Wc, Wo, Wy;
 	mat bf, bi, bc, bo, by;
 	Wf.load("Wf.txt", raw_ascii);
@@ -134,6 +135,9 @@ void loadWbToPredictListStruct(const char* fileName)
 	bc.load("bc.txt", raw_ascii);
 	bo.load("bo.txt", raw_ascii);
 	by.load("by.txt", raw_ascii);
+	*/
+	RNN::ph1->load("1");
+	RNN::ph2->load("2");
 
 	vector<SceStruct> listStruct = read_write(fileName);
 	vector<double> true_false;
@@ -145,8 +149,7 @@ void loadWbToPredictListStruct(const char* fileName)
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wf, Wi, Wc, Wo, Wy,
-			bf, bi, bc, bo, by,
+		RNN::predictOneScenario(RNN::ph1, RNN::ph2,
 			first.matDataZScore,
 			first.score, loss, idx_target, idx_pred);
 
@@ -175,6 +178,7 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp,
 {
 	// 注意：在predict之前，确定下 MyParams 中参数是匹配的
 
+	/*
 	mat Wf, Wi, Wc, Wo, Wy,
 		bf, bi, bc, bo, by;
 	Wf = mp["Wf"];
@@ -187,6 +191,9 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp,
 	bc = mp["bc"];
 	bo = mp["bo"];
 	by = mp["by"];
+	*/
+	RNN::ph1->load("1");
+	RNN::ph2->load("2");
 
 	vector<SceStruct> listStruct = read_write(fileName);
 	vector<double> true_false;
@@ -198,8 +205,7 @@ void calcPredLossMeanAccu(map<string, arma::mat> mp,
 
 		double loss;
 		int idx_target, idx_pred;
-		RNN::predictOneScenario(Wf, Wi, Wc, Wo, Wy,
-			bf, bi, bc, bo, by,
+		RNN::predictOneScenario(RNN::ph1, RNN::ph2,
 			first.matDataZScore,
 			first.score, loss, idx_target, idx_pred);
 
@@ -382,20 +388,38 @@ int main()
 	
 	// -----------------------------
 
-	double optLambda = 0.1; // LSTM, start: 0.23, gearShift: 
+	
+	double optLambda = 0.0; // LSTM, gearShift:  
 	train_rnn_withALambda("listStructTrain", optLambda);
 
-	/*
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
 	loadWbToPredictListStruct("listStructCV"); std::cout << endl;
 	loadWbToPredictListStruct("listStructTest");
+	
+	/*
+		Dropout:
+		prob:	epoches:	train/cv/train
+		0.5		201			
+
 	*/
 
 	/*
+		L2正则：
 		lstm:
-		lambda	epoches	train / cv / test: 
-		0.1		1001	0.694 / 0.341 / 0.463
-		0.23	1051	0.628/0.2683/0.4878
+		lambda	epoches		train / cv / test: 
+		0       	201		1.0 / 0.4 / 0.439
+		0.01		51		0.9
+		0.025		51		0.84/0.375/0.39
+		0.05		51		0.62/0.425/0.56
+					201		???
+
+		0.075		51		0.496/0.5/0.463
+					201		0.636/0.45/0.488
+
+		0.1			51		0.43/0.425/0.463
+					201		bad
+		0.2			51		0.26/0.225/0.29
+
 
 	*/
 
@@ -409,6 +433,13 @@ int main()
 	// epoches: 21, threads: 1  => dt 73.0s
 
 	// ======================== try =======================
+
+	/*
+	// dropout vector
+	mat vec = HiddenLayer::generateDropoutVector(10, 0.4);
+	vec.print("dropout vector: ");
+	*/
+
 	// arma::mat 对col的set ，可以 :)
 	/*
 	mat m1 = mat(3,5000, fill::randu);

@@ -1,9 +1,12 @@
 #pragma once
 #include <iostream>
+#include <ctime>
+#include <cstdlib>
 #include "MyLib.h"
 #include <armadillo>
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 #include "Params.h"
 
@@ -40,8 +43,9 @@ public:
 
 		Xs: 第一个隐层的输入时Xs, 其它隐层输入是它前一个隐层的 Hs
 	*/
-	map<int, mat> hiddenForward(mat inputs, mat hprev, mat cprev);
+	map<int, mat> hiddenForward(mat inputs, mat hprev, mat cprev, double dropout_prob);
 
+	map<int, mat> hiddenForward(map<int, mat> inputs, mat hprev, mat cprev, double dropout_prob);
 
 	/*
 		隐层反传：由dh算出 deltaParams 并返回这些值 dP.
@@ -55,6 +59,9 @@ public:
 		return keys of map: dWf, dWi, dWc, dWo, dWhh, dbf, dbi, dbc, dbo, dbhh
 	*/
 	map<string, mat> hiddenBackward(mat inputs, map<int, mat> d_outputs_in, map<int, mat>& d_outputs_out, double lambda0);
+
+	map<string, mat> hiddenBackward(map<int, mat> inputs, map<int, mat> d_outputs_in, map<int, mat>& d_outputs_out, double lambda0);
+
 
 	/*
 		对隐层参数进行更新，使用 deltaParams
@@ -79,8 +86,17 @@ public:
 
 	void loadParams(string title);
 
+	/*
+		根据prob生成 dropout vector 只含 0/1. 长度为len
+		每个元素prob的概率生成0，其它为1.
+
+		prob: 是去除神经元的占比
+	*/
+	static mat generateDropoutVector(int len, double prob);
+
 private:
 	mat sigmoid(arma::mat mx);
+
 
 public: 
 	/*

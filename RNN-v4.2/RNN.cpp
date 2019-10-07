@@ -3,12 +3,13 @@
 std::mutex RNN::mtx;
 
 int		RNN::total_epoches = 201;
-double	RNN::alpha = 0.02;
+double	RNN::alpha = 0.015; 
 double	RNN::score_max = 9.4; // start: 8.9, gearShiftUp: 9.4
 double	RNN::score_min = 4.9; // start: 6.0, gearShiftUp: 4.9
 int		RNN::n_features = 20;
 int		RNN::n_hidden = 50;
 int		RNN::n_output_classes = 10;
+double	RNN::dropout = 0.2; // 去除neuron的占比
 
 int RNN::tmp = 11; // 试验是否可以 实例操作静态对象
 
@@ -211,7 +212,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				loss_one_epoch.push_back(loss(0, 0));
 
 				// print loss
-				if (i % 100 == 0)
+				if (i % 50 == 0)
 				{
 					// 把此epoch中的每个场景的 loss 打印
 					cout << "				loss: " << loss(0, 0) << endl;
@@ -220,8 +221,8 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 
 			// clip
 			double maxVal, minVal;
-			maxVal = 3.0;
-			minVal = -3.0;
+			maxVal = 5.0;
+			minVal = -5.0;
 			/*
 			clip(dWf1Sum, maxVal, minVal);
 			clip(dWi1Sum, maxVal, minVal);
@@ -286,7 +287,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 
 		if (i % 1 == 0)
 		{
-			cout << "lambda: " << lambda << ", epoch: " << i 
+			cout << "dropout: " << RNN::dropout << ", lambda: " << lambda << ", epoch: " << i << " / " << RNN::total_epoches
 				<< ", loss_mean_this_epoch: " << loss_this_epoch
 				<< ", accu_this_epoch: " << accu_this_epoch << "\n";
 		}
@@ -373,10 +374,11 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 
 	// ===================== forward pass =========================
 		// 把场景数据inputs传给H1
-		hiddenLayer1->hiddenForward(inputs, hprev, cprev);
+		hiddenLayer1->hiddenForward(inputs, hprev, cprev, RNN::dropout);
 
 		// 把H1计算结果hs传给H2
-		hiddenLayer2->hiddenForward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), hprev, cprev); // map2mat()中的hs[idx=-1,0,1,...]第一行是tprev状态的，不用
+		//hiddenLayer2->hiddenForward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), hprev, cprev); // map2mat()中的hs[idx=-1,0,1,...]第一行是tprev状态的，不用
+		hiddenLayer2->hiddenForward(hiddenLayer1->hs, hprev, cprev, RNN::dropout); // map2mat()中的hs[idx=-1,0,1,...]第一行是tprev状态的，不用
 
 
 		// 计算output // 在最后一个时刻，last hidden 的hs[t] 传给output
@@ -439,7 +441,8 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 
 			// H2
 			map<int, mat> d_outputs_out2;
-			map<string,mat> deltaParamsH2 = hiddenLayer2->hiddenBackward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), dy, d_outputs_out2, lambda);
+			//map<string,mat> deltaParamsH2 = hiddenLayer2->hiddenBackward(HiddenLayer::map2mat(hiddenLayer1->hs, 0, inputs.n_rows-1), dy, d_outputs_out2, lambda);
+			map<string,mat> deltaParamsH2 = hiddenLayer2->hiddenBackward(hiddenLayer1->hs, dy, d_outputs_out2, lambda);
 
 			// H1
 			map<int, mat> d_outputs_out1;
@@ -459,47 +462,52 @@ LossFunctionReturn RNN::lossFun(mat inputs,
 
 
 
-
-void RNN::predictOneScenario(mat Wf, mat Wi, mat Wc, mat Wo, mat Wy,
-	mat bf, mat bi, mat bc, mat bo, mat by,
+/*
+	H1 --> H2 计算出 hs of H2, 
+	--> ps
+*/
+void RNN::predictOneScenario(Params* ph1, Params* ph2,
 	mat inputs,
 	double score, double& loss, int& idx_target, int& idx_prediction)
 {
+	/*
 	n_hidden = bf.n_cols; // predict 时修改
 	n_output_classes = by.n_cols; // predict时修改
+	*/
 
 	int idx1;
 	mat targets = score2onehot(score, idx1); // score => targets(format: onehot)
 
+	/*
 	map<int, mat> xs, X,
 		h_fs, h_is, h_os, h_cs, // hidden gate state
-		cs, hs, ys, ps;
+		cs, hs;
+	*/
+	map<int,mat> ys, ps;
 
-	mat hprev = arma::zeros<mat>(1, RNN::n_hidden);
-	mat cprev = arma::zeros<mat>(1, RNN::n_hidden);
+	mat h1prev = arma::zeros<mat>(1, RNN::n_hidden);
+	mat c1prev = arma::zeros<mat>(1, RNN::n_hidden);
+
+	mat h2prev = arma::zeros<mat>(1, RNN::n_hidden);
+	mat c2prev = arma::zeros<mat>(1, RNN::n_hidden);
+	/*
 	hs[-1] = hprev; // 默认是 深拷贝
 	cs[-1] = cprev; // 默认是 深拷贝
+	*/
+
+
 	mat loss_tmp = arma::zeros<mat>(1, 1);
 
-	for (int t = 0; t < inputs.n_rows; t++)
-	{
-		xs[t] = inputs.row(t); // (1,d)
-		X[t] = arma::join_horiz(hs[t - 1], xs[t]); // X: concat [h_old, curx] (1,h+d)
+	
+	HiddenLayer* hiddenLayer1 = new HiddenLayer(RNN::n_features, RNN::n_hidden, RNN::n_hidden, ph1);
+	HiddenLayer* hiddenLayer2 = new HiddenLayer(RNN::n_hidden, RNN::n_hidden, RNN::n_output_classes, ph2);
+	hiddenLayer1->hiddenForward(inputs, h1prev, c1prev, RNN::dropout);
+	hiddenLayer2->hiddenForward(hiddenLayer1->hs, h2prev, c2prev, RNN::dropout);
 
-		//hs[t] = arma::tanh(Wxh * xs[t] + Whh * hs[t - 1] + bh);
-
-		h_fs[t] = RNN::sigmoid(X[t] * Wf + bf); // (1,h+d)(h+d,h) = (1,h)
-		h_is[t] = RNN::sigmoid(X[t] * Wi + bi);
-		h_os[t] = RNN::sigmoid(X[t] * Wo + bo);
-		h_cs[t] = arma::tanh(X[t] * Wc + bc);
-
-		cs[t] = h_fs[t] % cs[t - 1] + h_is[t] % h_cs[t]; // (1,h)
-		hs[t] = h_os[t] % arma::tanh(cs[t]); // (1,h)
-
-		if (t == inputs.n_rows - 1)
-		{
-			ys[t] = hs[t] * Wy + by; // (1,h)(h,y) = (1,y)
-			ps[t] = RNN::softmax(ys[t]);
+	int t = inputs.n_rows - 1;
+			//ys[t] = hs[t] * Wy + by; // (1,h)(h,y) = (1,y)
+	ys[t] = hiddenLayer2->hs[t] * hiddenLayer2->Whh + hiddenLayer2->bhh;
+	ps[t] = RNN::softmax(ys[t]);
 
 			loss_tmp += -log(ps[t](idx1));
 
@@ -509,8 +517,7 @@ void RNN::predictOneScenario(mat Wf, mat Wi, mat Wc, mat Wo, mat Wy,
 			loss = loss_tmp(0, 0);
 			idx_target = idx1;
 			idx_prediction = idx_max_ps(0);
-		}
-	}
+	
 }
 
 void RNN::saveParams()
