@@ -2,12 +2,12 @@
 
 std::mutex RNN::mtx;
 
-int		RNN::total_epoches = 501;
-double	RNN::alpha = 0.1;
+int		RNN::total_epoches = 21;
+double	RNN::alpha = 0.15;
 double	RNN::score_max = 9.4; // start: 8.9, gearShiftUp: 9.4
 double	RNN::score_min = 4.9; // start: 6.0, gearShiftUp: 4.9
 int		RNN::n_features = 20;
-int		RNN::n_hidden = 30;
+int		RNN::n_hidden = 50;
 int		RNN::n_output_classes = 10;
 
 int RNN::tmp = 11; // 试验是否可以 实例操作静态对象
@@ -138,7 +138,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				loss_one_epoch.push_back(loss(0, 0));
 
 				// print loss
-				if (i % 100 == 0)
+				if (i % 50 == 0)
 				{
 					// 把此epoch中的每个场景的 loss 打印
 					cout << "				loss: " << loss(0, 0) << endl;
@@ -180,9 +180,9 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 		loss_mean_each_epoch.push_back(loss_this_epoch);
 		accuracy_each_epoch.push_back(accu_this_epoch);
 
-		if (i % 10 == 0)
+		if (i % 2 == 0)
 		{
-			cout << "lambda: " << lambda << ", epoch: " << i 
+			cout << "lambda: " << lambda << ", epoch: " << i  << " / " << RNN::total_epoches
 				<< ", loss_mean_this_epoch: " << loss_this_epoch
 				<< ", accu_this_epoch: " << accu_this_epoch << "\n";
 		}
