@@ -2,7 +2,7 @@
 
 std::mutex RNN::mtx;
 
-int		RNN::total_epoches = 201;
+int		RNN::total_epoches = 21;
 double	RNN::alpha = 0.015; 
 double	RNN::score_max = 9.4; // start: 8.9, gearShiftUp: 9.4
 double	RNN::score_min = 4.9; // start: 6.0, gearShiftUp: 4.9
@@ -10,7 +10,7 @@ int		RNN::n_features = 20;
 int		RNN::n_hidden = 50;
 int		RNN::n_output_classes = 10;
 
-double	RNN::dropout = 0.5; // 去除neuron的占比
+double	RNN::dropout = 0.; // 去除neuron的占比
 int		RNN::n_threads = 8;
 map<std::thread::id, HiddenLayer*> RNN::threadPool;
 
@@ -117,7 +117,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 	*/
 
 	DParams* dPh1 = new DParams();
-	DParams* dPh2 = new DParams();
+	//DParams* dPh2 = new DParams();
 
 	mat loss;
 
@@ -199,7 +199,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				dPh1->dboSum += deltaParamsH1["dbo"];
 				dPh1->dbhhSum += deltaParamsH1["dbhh"];
 
-				dPh2->dWfSum += deltaParamsH2["dWf"];
+				/*dPh2->dWfSum += deltaParamsH2["dWf"];
 				dPh2->dWiSum += deltaParamsH2["dWi"];
 				dPh2->dWcSum += deltaParamsH2["dWc"];
 				dPh2->dWoSum += deltaParamsH2["dWo"];
@@ -208,7 +208,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 				dPh2->dbiSum += deltaParamsH2["dbi"];
 				dPh2->dbcSum += deltaParamsH2["dbc"];
 				dPh2->dboSum += deltaParamsH2["dbo"];
-				dPh2->dbhhSum += deltaParamsH2["dbhh"];
+				dPh2->dbhhSum += deltaParamsH2["dbhh"];*/
 
 				// store in vec
 				lossAllVec.push_back(loss(0, 0));
@@ -250,7 +250,7 @@ void RNN::trainMultiThread(vector<SceStruct> listStructTrain,
 			clip(dbySum, maxVal, minVal);
 			*/
 			clip(dPh1, maxVal, minVal);
-			clip(dPh2, maxVal, minVal);
+			//clip(dPh2, maxVal, minVal);
 			
 
 			// update params。把每个场景看做一个样本的话，则是sgd。

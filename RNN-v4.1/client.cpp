@@ -382,13 +382,13 @@ int main()
 	
 	// -----------------------------
 
-	double optLambda = 0.0; // LSTM, start: 0.23, gearShift: 
+	double optLambda = 1/8.; // LSTM, start: 0.23, gearShift: 
 	train_rnn_withALambda("listStructTrain", optLambda);
 
-	/*
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
 	loadWbToPredictListStruct("listStructCV"); std::cout << endl;
 	loadWbToPredictListStruct("listStructTest");
+	/*
 	*/
 
 	/*

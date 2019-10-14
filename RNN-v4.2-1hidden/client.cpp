@@ -389,7 +389,7 @@ int main()
 	// -----------------------------
 
 	
-	double optLambda = 0.0; // LSTM, gearShift:  
+	double optLambda = 1/8.; // LSTM, gearShift:  
 	train_rnn_withALambda("listStructTrain", optLambda);
 
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
