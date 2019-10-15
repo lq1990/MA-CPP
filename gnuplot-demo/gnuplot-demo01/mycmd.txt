@@ -15,7 +15,7 @@ set xtics 0,25
 set xlabel 'x'
 set ylabel 'y'
 set title 'first'
-plot 'data.txt' using 1:2 w l lw 0.5 lc rgb 'red'
+plot 'data.txt' using 1:2 w l lw 0.5 lc rgb 'red' #使用1列和2列
 set xtics auto
 
 # second

@@ -30,7 +30,7 @@ vector<SceStruct> read_write(const char* fileName)
 	vector<SceStruct> vec;
 
 	//const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/start_loadSync/DataFinalSave/list_data/";
-	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/gearShiftUp_loadSync/DataFinalSave/list_data/";
+	const char* dir = "C:/Program Files/MATLAB/MATLAB Production Server/R2015a/MA_Matlab/Arteon_Geely/gearShift_loadSync/DataFinalSave/list_data/";
 
 	const char* tail = ".mat";
 	char path[1000];
@@ -255,10 +255,10 @@ void train_rnn()
 	double globalCVMinLossMean = INFI;
 	double globalCVMaxAccu = -INFI;
 
-	double maxLambda = 2;
+	double maxLambda = 1.0001;
 	double intervalLambda = 0.1;
 	mat matLambdaLossMeanAccu_CV_Train(maxLambda / intervalLambda + 2, 5, fill::zeros); // col1: lambda，col2: cvLossMean, col3: trainLossMean，col4: cvAccu, col5: trainAccu
-	for (double lambda = 0, i = 0; lambda <= maxLambda; lambda+= intervalLambda, i++)
+	for (double lambda = 0., i = 0; lambda <= maxLambda; lambda+= intervalLambda, i++)
 	{
 		/*if (lambda < 0.22)
 		{
@@ -390,8 +390,8 @@ int main()
 	// -----------------------------
 
 	
-	double optLambda = 0.5;
-	train_rnn_withALambda("listStructTrain", optLambda);
+	double optLambda = 0.6;
+	//train_rnn_withALambda("listStructTrainCV", optLambda);
 
 	loadWbToPredictListStruct("listStructTrain"); std::cout << endl;
 	loadWbToPredictListStruct("listStructCV"); std::cout << endl;

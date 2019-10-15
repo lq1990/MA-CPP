@@ -7,7 +7,7 @@ double	RNN::alpha = 0.015;
 double	RNN::score_max = 10; // start: 8.9, gearShiftUp: 9.4
 double	RNN::score_min = 4; // start: 6.0, gearShiftUp: 4.9
 int		RNN::n_features = 16;
-int		RNN::n_hidden = 30;
+int		RNN::n_hidden = 50;
 int		RNN::n_output_classes = 5;
 
 double	RNN::dropout = 0.; // 去除neuron的占比
